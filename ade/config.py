@@ -4,7 +4,11 @@ Configuration constants and defaults for ADE.
 """
 
 # Version
-__version__ = "1.1.0"
+__version__ = "1.2.0"
+
+# Debug mode (set by CLI --debug/-v flag)
+DEBUG = False
+DEBUG_LOG_FILE = None
 
 # Default credentials (empty = anonymous)
 USERNAME_DEFAULT = ""

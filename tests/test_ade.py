@@ -40,7 +40,7 @@ def test_config_values():
     assert "nmap" in DEPENDENCIES, "nmap should be in DEPENDENCIES"
     assert "domain_discovery" in SECTION_ART, "domain_discovery should be in SECTION_ART"
     assert "[+]" in TAG_COLORS, "[+] should be in TAG_COLORS"
-    assert __version__ == "1.1.0", f"Version should be 1.1.0, got {__version__}"
+    assert __version__ == "1.2.0", f"Version should be 1.2.0, got {__version__}"
     print("✓ Config values correct")
     print(f"✓ Version: {__version__}")
     return True
@@ -139,6 +139,35 @@ def test_update_users_file():
     return True
 
 
+def test_debug_mode():
+    """Test debug mode configuration."""
+    print("Testing debug mode configuration...")
+    from ade import config
+    from ade.utils import debug_print, init_debug_log
+    
+    # Test debug state initialization (default should be off)
+    assert config.DEBUG == False, "Default debug state should be False"
+    
+    # Enable debug
+    config.DEBUG = True
+    assert config.DEBUG == True, "Debug state should be True after setting"
+    
+    # Test logger init doesn't crash
+    init_debug_log()
+    if config.DEBUG_LOG_FILE:
+        assert config.DEBUG_LOG_FILE.startswith("ade_debug_"), "Log filename format incorrect"
+        # Cleanup log file
+        try:
+            os.unlink(config.DEBUG_LOG_FILE)
+        except:
+            pass
+            
+    # Reset
+    config.DEBUG = False
+    print("✓ Debug mode configuration works correctly")
+    return True
+
+
 def run_all_tests():
     """Run all tests."""
     print("=" * 60)
@@ -152,6 +181,7 @@ def run_all_tests():
         test_print_functions,
         test_cli_help,
         test_update_users_file,
+        test_debug_mode,
     ]
     
     passed = 0

@@ -42,9 +42,18 @@ def main():
     # Standard credentials
     parser.add_argument("-u", "--username", default=USERNAME_DEFAULT, help="Username for authenticated scans.")
     parser.add_argument("-p", "--password", default=PASSWORD_DEFAULT, help="Password for authenticated scans.")
+    parser.add_argument("-v", "--debug", action="store_true", help="Enable debug mode for verbose output and logging.")
 
 
     args = parser.parse_args()
+
+    # Initialize Debug Mode
+    if args.debug:
+        from . import config
+        config.DEBUG = True
+        from .utils import init_debug_log, print_status
+        init_debug_log()
+        print_status("[*] Debug mode enabled - verbose output will be logged to file")
 
     args.kerberos = False
 
