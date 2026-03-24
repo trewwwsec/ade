@@ -7,26 +7,13 @@ import re
 from termcolor import colored
 
 from .config import SECTION_ART
-from .utils import print_status, print_header, run_command
+from .utils import print_status, print_header, run_command, line_has_successful_enumeration
 
 
 # Patterns to find anywhere in an output line
-_MATCH_PATTERNS = [
-    re.compile(r'\[\+\]'),                       # success token anywhere
-    re.compile(r'\[\-\]'),                       # failure token anywhere
-    re.compile(r'\[\!\]'),
-    re.compile(r'STATUS_[A-Z_]+', re.IGNORECASE),# STATUS_ codes
-    re.compile(r'Authenticated', re.IGNORECASE), # auth success word
-    re.compile(r'Connection Error', re.IGNORECASE), # connection errors
-]
-
-
 def line_matches(line: str) -> bool:
-    """Check if a line matches any of the output patterns."""
-    for pat in _MATCH_PATTERNS:
-        if pat.search(line):
-            return True
-    return False
+    """Check if a line looks like a useful positive finding."""
+    return line_has_successful_enumeration(line)
 
 
 def get_password_policy(r: str, u: str = None, p: str = None, k: bool = False) -> dict:

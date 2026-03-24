@@ -109,7 +109,7 @@ def main():
         # Standard credentials
         parser.add_argument("-u", "--username", default=USERNAME_DEFAULT, help="Username for authenticated scans.")
         parser.add_argument("-p", "--password", default=PASSWORD_DEFAULT, help="Password for authenticated scans.")
-        parser.add_argument("-v", "--debug", action="store_true", help="Enable debug mode for verbose output and logging.")
+        parser.add_argument("-v", "--verbose", "--debug", dest="debug", action="store_true", help="Show raw tool output and write a verbose debug log.")
         parser.add_argument("-o", "--output-dir", default=None, help="Output directory for loot (default: ade_<IP>_<date>/).")
         parser.add_argument("--modules", default=None, help="Comma-separated list of modules to run.")
         parser.add_argument("--skip", default=None, help="Comma-separated list of modules to skip.")

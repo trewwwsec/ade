@@ -14,6 +14,22 @@ import sys
 from . import config  # Import config module to access/modify global vars
 
 
+RAW_OUTPUT_SUCCESS_PATTERNS = [
+    re.compile(r"\[\+\]"),
+    re.compile(r"Authenticated", re.IGNORECASE),
+    re.compile(r"\bREAD\b", re.IGNORECASE),
+    re.compile(r"\bWRITE\b", re.IGNORECASE),
+    re.compile(r"SidTypeUser", re.IGNORECASE),
+    re.compile(r"Pwn3d", re.IGNORECASE),
+    re.compile(r"\$krb5asrep\$", re.IGNORECASE),
+    re.compile(r"\$krb5tgs\$", re.IGNORECASE),
+    re.compile(r"\bESC\d+\b", re.IGNORECASE),
+    re.compile(r"VULNERABLE", re.IGNORECASE),
+    re.compile(r"Template Name", re.IGNORECASE),
+    re.compile(r"CA Name", re.IGNORECASE),
+]
+
+
 def init_debug_log():
     """Initialize the debug log file with a timestamp."""
     from .config import ensure_output_parent, get_output_path
@@ -75,6 +91,11 @@ def print_header(title: str) -> None:
     print(colored(f"\n\n{title}", "magenta"))
 
 
+def line_has_successful_enumeration(line: str) -> bool:
+    """Return True when a raw tool-output line looks like a useful positive finding."""
+    return any(pattern.search(line) for pattern in RAW_OUTPUT_SUCCESS_PATTERNS)
+
+
 def run_command(
     cmd_list_or_str,
     title: str,
@@ -118,7 +139,8 @@ def run_command(
     else:
         cmd_str = cmd_list_or_str
 
-    print(colored(f"$ {cmd_str}", "white"))
+    if config.DEBUG:
+        print(colored(f"$ {cmd_str}", "white"))
     log_debug(f"[EXEC] $ {cmd_str}")
 
     attempt = 0
@@ -184,17 +206,17 @@ def run_command(
             if result and result.stderr:
                 log_debug("[STDERR] " + result.stderr)
 
-        # Only print output on first attempt or if it's the last attempt
-        # IN DEBUG MODE: Always print output
-        if attempt == 0 or attempt == max_retries - 1 or config.DEBUG:
-            lines = full_output.splitlines()
-            if not lines and config.DEBUG:
-                debug_print("(No output received)")
-                
+        lines = full_output.splitlines()
+        if not lines and config.DEBUG:
+            debug_print("(No output received)")
+
+        if config.DEBUG:
             for line in lines:
-                # In debug mode, we might want to see unrelated output too, 
-                # but we generally stick to colorized output for readability.
                 print(colorize_tags(line))
+        else:
+            for line in lines:
+                if line_has_successful_enumeration(line):
+                    print(colorize_tags(line))
 
         # Check if we should retry
         should_retry = False

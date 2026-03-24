@@ -6,6 +6,8 @@ Test suite for ADE modular package.
 import sys
 import os
 import tempfile
+import io
+import contextlib
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -59,11 +61,11 @@ def test_line_matches():
     
     # Should match
     assert line_matches("[+] Success") == True, "Should match [+]"
-    assert line_matches("[-] Failure") == True, "Should match [-]"
-    assert line_matches("[!] Warning") == True, "Should match [!]"
-    assert line_matches("STATUS_LOGON_FAILURE") == True, "Should match STATUS_"
+    assert line_matches("[-] Failure") == False, "Should suppress failed output in normal mode"
+    assert line_matches("[!] Warning") == False, "Should suppress warnings in normal mode"
+    assert line_matches("STATUS_LOGON_FAILURE") == False, "Should suppress STATUS_ failures in normal mode"
     assert line_matches("User Authenticated successfully") == True, "Should match Authenticated"
-    assert line_matches("Connection Error occurred") == True, "Should match Connection Error"
+    assert line_matches("Connection Error occurred") == False, "Should suppress connection errors in normal mode"
     
     # Should not match
     assert line_matches("random text without patterns") == False, "Should not match random text"
@@ -656,6 +658,69 @@ def test_host_check_handles_sudo_permission_error():
     return True
 
 
+def test_run_command_filters_raw_output_by_default():
+    """Test run_command only prints successful findings unless verbose mode is enabled."""
+    print("Testing run_command() default output filtering...")
+    from ade import config, utils
+
+    original_run = utils.subprocess.run
+    old_debug = config.DEBUG
+
+    class _Result:
+        stdout = "[+] share READ\n[-] STATUS_LOGON_FAILURE\nTemplate Name: ESC1-Web\n"
+        stderr = ""
+        returncode = 0
+
+    utils.subprocess.run = lambda *args, **kwargs: _Result()
+    config.DEBUG = False
+
+    try:
+        with io.StringIO() as buf, contextlib.redirect_stdout(buf):
+            utils.run_command(["demo"], "Demo command")
+            output = buf.getvalue()
+    finally:
+        utils.subprocess.run = original_run
+        config.DEBUG = old_debug
+
+    assert "Demo command" in output, "Command title should still be shown"
+    assert "[+] share READ" in output, "Successful findings should be shown"
+    assert "Template Name: ESC1-Web" in output, "Positive ADCS findings should be shown"
+    assert "STATUS_LOGON_FAILURE" not in output, "Failure chatter should be hidden by default"
+    assert "$ demo" not in output, "Raw command should be hidden by default"
+    print("✓ run_command() hides noisy raw output by default")
+    return True
+
+
+def test_run_command_shows_raw_output_in_verbose_mode():
+    """Test run_command prints full subprocess output in verbose mode."""
+    print("Testing run_command() verbose mode...")
+    from ade import config, utils
+
+    original_run = utils.subprocess.run
+    old_debug = config.DEBUG
+
+    class _Result:
+        stdout = "[+] share READ\n[-] STATUS_LOGON_FAILURE\n"
+        stderr = ""
+        returncode = 0
+
+    utils.subprocess.run = lambda *args, **kwargs: _Result()
+    config.DEBUG = True
+
+    try:
+        with io.StringIO() as buf, contextlib.redirect_stdout(buf):
+            utils.run_command(["demo"], "Demo command")
+            output = buf.getvalue()
+    finally:
+        utils.subprocess.run = original_run
+        config.DEBUG = old_debug
+
+    assert "$ demo" in output, "Verbose mode should show the raw command"
+    assert "STATUS_LOGON_FAILURE" in output, "Verbose mode should show full raw output"
+    print("✓ run_command() preserves raw output in verbose mode")
+    return True
+
+
 def run_all_tests():
     """Run all tests."""
     print("=" * 60)
@@ -683,6 +748,8 @@ def run_all_tests():
         test_user_spraying_uses_argv_for_output_dir_with_spaces,
         test_smb_enum_uses_ccache_found_in_cwd_and_copies_to_output_dir,
         test_host_check_handles_sudo_permission_error,
+        test_run_command_filters_raw_output_by_default,
+        test_run_command_shows_raw_output_in_verbose_mode,
     ]
     
     passed = 0

@@ -8,6 +8,7 @@ import os
 import re
 from termcolor import colored
 
+from . import config
 from .config import SECTION_ART, USERS_FILE, ensure_output_parent, get_output_path
 from .utils import print_status, print_header, run_command
 from .policy import get_password_policy, line_matches
@@ -89,7 +90,8 @@ def try_user_file(
             return
 
     print_status(f"\n\n[*] Starting {note} (Checking {file_path})...")
-    print(colored(f"$ nxc smb {target} -u <user> -p <user> --continue-on-success", "white"))
+    if config.DEBUG:
+        print(colored(f"$ nxc smb {target} -u <user> -p <user> --continue-on-success", "white"))
 
     with open(file_path, "r", encoding="utf-8") as fh:
         for raw in fh:
