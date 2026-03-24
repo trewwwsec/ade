@@ -7,12 +7,14 @@ import argparse
 import sys
 from termcolor import colored
 
+from . import config
 from .config import (
     ASCII_ART_BANNER,
     ASCII_ART_FINISH,
     USERNAME_DEFAULT,
     PASSWORD_DEFAULT,
-    USERS_FILE,
+    AVAILABLE_MODULES,
+    module_enabled,
 )
 from .utils import print_status, print_header
 from .dependencies import check_dependencies
@@ -23,6 +25,54 @@ from .ldap import ldap_enumeration
 from .smb import smb_enum
 from .attacks import user_spraying, kerberoasting
 from .collection import bloodhound, bloodyad, adcs_certipy
+
+
+def _setup_modules(args):
+    """Parse --modules / --skip and set config.ENABLED_MODULES."""
+    if args.modules and args.skip:
+        print_status("[-] Cannot use --modules and --skip together.")
+        sys.exit(1)
+
+    if args.modules:
+        names = [n.strip() for n in args.modules.split(",") if n.strip()]
+        for name in names:
+            if name not in AVAILABLE_MODULES:
+                print_status(f"[-] Unknown module: '{name}'. Available: {', '.join(AVAILABLE_MODULES)}")
+                sys.exit(1)
+        config.ENABLED_MODULES = set(names)
+    elif args.skip:
+        names = [n.strip() for n in args.skip.split(",") if n.strip()]
+        for name in names:
+            if name not in AVAILABLE_MODULES:
+                print_status(f"[-] Unknown module: '{name}'. Available: {', '.join(AVAILABLE_MODULES)}")
+                sys.exit(1)
+        config.ENABLED_MODULES = set(AVAILABLE_MODULES) - set(names)
+    else:
+        config.ENABLED_MODULES = None
+
+
+def _missing_module_requirements(module_name, args):
+    """Return a list of unmet prerequisites for a module at its execution point."""
+    if module_name == "asrep":
+        return [] if args.domain else ["domain"]
+
+    if module_name in {"kerberoast", "bloodhound", "bloodyad", "adcs"}:
+        missing = []
+        if not args.username or not args.password:
+            missing.append("credentials")
+        if not args.domain:
+            missing.append("domain")
+        if not args.fqdn:
+            missing.append("fqdn")
+        return missing
+
+    return []
+
+
+def _report_module_skip(module_name, missing):
+    """Emit a consistent skip message for a module with unmet prerequisites."""
+    pretty = ", ".join(missing)
+    print_status(f"[!] Skipping {module_name}: missing required {pretty}.")
 
 
 def main():
@@ -43,13 +93,15 @@ def main():
     parser.add_argument("-u", "--username", default=USERNAME_DEFAULT, help="Username for authenticated scans.")
     parser.add_argument("-p", "--password", default=PASSWORD_DEFAULT, help="Password for authenticated scans.")
     parser.add_argument("-v", "--debug", action="store_true", help="Enable debug mode for verbose output and logging.")
+    parser.add_argument("--modules", default=None, help="Comma-separated list of modules to run.")
+    parser.add_argument("--skip", default=None, help="Comma-separated list of modules to skip.")
 
 
     args = parser.parse_args()
+    _setup_modules(args)
 
     # Initialize Debug Mode
     if args.debug:
-        from . import config
         config.DEBUG = True
         from .utils import init_debug_log, print_status
         init_debug_log()
@@ -70,6 +122,8 @@ def main():
             print(colored(f"[CONFIG] FQDN:", "blue") + colored(f"      {args.fqdn or 'Not Provided. Script will attempt discovery.'}", "white"))
             print(colored(f"[CONFIG] User:", "blue") + colored(f"      {args.username or 'Anonymous/Guest'}", "white"))
             print(colored(f"[CONFIG] Password:", "blue") + colored(f"  {args.password or 'Not Provided'}", "white"))
+            if config.ENABLED_MODULES is not None:
+                print(colored(f"[CONFIG] Modules:", "blue") + colored(f"   {', '.join(sorted(config.ENABLED_MODULES))}", "white"))
 
         run_authenticated_checks = False
         if not args.kerberos:
@@ -84,14 +138,14 @@ def main():
                 sys.exit(1)
 
         # This discovers domain/fqdn
-        if not args.kerberos:
+        if not args.kerberos and module_enabled("discovery"):
             discovered_domain, discovered_fqdn = domain_discovery(args.rhosts)
             if discovered_domain:
                 args.domain = discovered_domain
             if discovered_fqdn:
                 args.fqdn = discovered_fqdn
             
-        if not args.kerberos:
+        if not args.kerberos and module_enabled("creds"):
             cred_status = "no-creds"
             needs_rerun_from_creds = False
             cred_status = verify_credentials(args.rhosts, args.username, args.password)
@@ -111,38 +165,57 @@ def main():
                 run_authenticated_checks = True
                 continue 
 
-        ldap_enumeration(args.rhosts, args.username, args.password, args.kerberos)
+        if module_enabled("ldap"):
+            ldap_enumeration(args.rhosts, args.username, args.password, args.kerberos)
 
         # SMB Enumeration
-        smb_enum(args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos)
+        if module_enabled("smb"):
+            smb_enum(args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos)
 
         # User Spraying / AS-REP Roasting
-        if args.domain:
-            user_spraying(args.rhosts, args.domain, args.username, args.password, k=args.kerberos, cred_status=cred_status)
-        else:
-            print_status("\n[!] Skipping User Spraying (AS-REP Roasting), as it requires domain discovery.")
+        if module_enabled("asrep"):
+            missing = _missing_module_requirements("asrep", args)
+            if missing:
+                _report_module_skip("asrep", missing)
+            else:
+                user_spraying(args.rhosts, args.domain, args.username, args.password, k=args.kerberos, cred_status=cred_status)
 
         # Authenticated-only follow-ups
-        if not args.username or not args.password:
-            print_status("\n[*] No credentials provided. Skipping authenticated checks.")
-        elif not args.domain or not args.fqdn:
-            print_status("\n[!] Skipping advanced authenticated checks, as they require discovered domain and fqdn.")
-        else:
-            # Kerberoasting (this can flip to Kerberos if NTLM fails later)
-            rerun_kerberos = kerberoasting(
-                args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos
-            )
+        if module_enabled("kerberoast"):
+            missing = _missing_module_requirements("kerberoast", args)
+            if missing:
+                _report_module_skip("kerberoast", missing)
+            else:
+                rerun_kerberos = kerberoasting(
+                    args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos
+                )
 
-            if rerun_kerberos and not args.kerberos:
-                args.kerberos = True
-                run_authenticated_checks = True
-                print_status("[*] Restarting Enumeration with Kerberos Enabled")
-                continue
+                if rerun_kerberos and not args.kerberos:
+                    args.kerberos = True
+                    run_authenticated_checks = True
+                    print_status("[*] Restarting Enumeration with Kerberos Enabled")
+                    continue
 
-            # Continue with remaining authenticated tasks
-            bloodhound(args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos)
-            bloodyad(args.rhosts, args.username, args.password, args.kerberos, args.domain, args.fqdn)
-            adcs_certipy(args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos)
+        if module_enabled("bloodhound"):
+            missing = _missing_module_requirements("bloodhound", args)
+            if missing:
+                _report_module_skip("bloodhound", missing)
+            else:
+                bloodhound(args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos)
+
+        if module_enabled("bloodyad"):
+            missing = _missing_module_requirements("bloodyad", args)
+            if missing:
+                _report_module_skip("bloodyad", missing)
+            else:
+                bloodyad(args.rhosts, args.username, args.password, args.kerberos, args.domain, args.fqdn)
+
+        if module_enabled("adcs"):
+            missing = _missing_module_requirements("adcs", args)
+            if missing:
+                _report_module_skip("adcs", missing)
+            else:
+                adcs_certipy(args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos)
 
     print_header(f"\n{ASCII_ART_FINISH}\n")
 
