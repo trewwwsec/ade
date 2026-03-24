@@ -462,6 +462,69 @@ def test_main_host_failure_does_not_create_output_dir():
     return True
 
 
+def test_main_resets_runtime_state_between_runs():
+    """Test repeated main() calls do not leak mutable runtime state."""
+    print("Testing repeated main() runtime-state cleanup...")
+    from ade import cli, config
+
+    old_check_dependencies = cli.check_dependencies
+    old_check_host_nmap = cli.check_host_nmap
+    old_domain_discovery = cli.domain_discovery
+    old_verify_credentials = cli.verify_credentials
+    old_smb_enum = cli.smb_enum
+    old_ldap_enumeration = cli.ldap_enumeration
+    old_user_spraying = cli.user_spraying
+    old_kerberoasting = cli.kerberoasting
+    old_bloodhound = cli.bloodhound
+    old_bloodyad = cli.bloodyad
+    old_adcs_certipy = cli.adcs_certipy
+    argv_backup = sys.argv[:]
+
+    cli.check_dependencies = lambda: None
+    cli.check_host_nmap = lambda _target: True
+    cli.domain_discovery = lambda _target: (None, None)
+    cli.verify_credentials = lambda *_args, **_kwargs: "no-creds"
+    cli.smb_enum = lambda *_args, **_kwargs: None
+    cli.ldap_enumeration = lambda *_args, **_kwargs: None
+    cli.user_spraying = lambda *_args, **_kwargs: None
+    cli.kerberoasting = lambda *_args, **_kwargs: False
+    cli.bloodhound = lambda *_args, **_kwargs: None
+    cli.bloodyad = lambda *_args, **_kwargs: None
+    cli.adcs_certipy = lambda *_args, **_kwargs: None
+
+    try:
+        sys.argv = ["ade", "-r", "10.10.10.10", "-o", "/tmp/ade_run_one", "--modules", "smb", "-v"]
+        cli.main()
+        assert config.OUTPUT_DIR is None, "OUTPUT_DIR should be reset after first run"
+        assert config.ENABLED_MODULES is None, "ENABLED_MODULES should be reset after first run"
+        assert config.DEBUG is False, "DEBUG should be reset after first run"
+        assert config.DEBUG_LOG_FILE is None, "DEBUG_LOG_FILE should be reset after first run"
+
+        sys.argv = ["ade", "-r", "10.10.10.11", "-o", "/tmp/ade_run_two", "--skip", "bloodhound"]
+        cli.main()
+        assert config.OUTPUT_DIR is None, "OUTPUT_DIR should be reset after second run"
+        assert config.ENABLED_MODULES is None, "ENABLED_MODULES should be reset after second run"
+        assert config.DEBUG is False, "DEBUG should be reset after second run"
+        assert config.DEBUG_LOG_FILE is None, "DEBUG_LOG_FILE should be reset after second run"
+    finally:
+        cli.check_dependencies = old_check_dependencies
+        cli.check_host_nmap = old_check_host_nmap
+        cli.domain_discovery = old_domain_discovery
+        cli.verify_credentials = old_verify_credentials
+        cli.smb_enum = old_smb_enum
+        cli.ldap_enumeration = old_ldap_enumeration
+        cli.user_spraying = old_user_spraying
+        cli.kerberoasting = old_kerberoasting
+        cli.bloodhound = old_bloodhound
+        cli.bloodyad = old_bloodyad
+        cli.adcs_certipy = old_adcs_certipy
+        sys.argv = argv_backup
+        config.reset_runtime_state()
+
+    print("✓ Repeated main() calls reset runtime state")
+    return True
+
+
 def test_user_spraying_uses_argv_for_output_dir_with_spaces():
     """Test AS-REP roasting uses argv safely when output paths contain spaces."""
     print("Testing user_spraying() path safety with spaced output dir...")
@@ -616,6 +679,7 @@ def run_all_tests():
         test_hash_parsing,
         test_init_debug_log_creates_output_dir_on_first_write,
         test_main_host_failure_does_not_create_output_dir,
+        test_main_resets_runtime_state_between_runs,
         test_user_spraying_uses_argv_for_output_dir_with_spaces,
         test_smb_enum_uses_ccache_found_in_cwd_and_copies_to_output_dir,
         test_host_check_handles_sudo_permission_error,
