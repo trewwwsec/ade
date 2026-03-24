@@ -69,6 +69,43 @@ With credentials (authenticated checks):
 ade -r <box-ip> -u <user> -p <password> 
 ```
 
+Write loot into a specific output directory:
+```
+ade -r <box-ip> -o <output-dir>
+```
+
+Run only selected modules:
+```
+ade -r <box-ip> --modules smb,asrep
+```
+
+Skip selected modules:
+```
+ade -r <box-ip> --skip bloodhound,adcs
+```
+
+Current module names:
+```
+discovery, creds, ldap, smb, asrep, kerberoast, bloodhound, bloodyad, adcs
+```
+
+Notes:
+- `--modules` is exact. ADE only runs the modules you name.
+- Some modules require prerequisites. For example, `asrep` needs a domain, and `kerberoast` / `bloodhound` / `bloodyad` / `adcs` need credentials plus discovered or supplied domain/FQDN context.
+- The output directory is resolved at startup but created only when ADE actually writes the first artifact.
+
+## Development / Testing
+
+Run the package directly:
+```
+python -m ade -r <box-ip>
+```
+
+Run the test suite with `uv`:
+```
+uv run python tests/test_ade.py
+```
+
 ---
 
 ## Thank You
