@@ -28,22 +28,34 @@ def check_host_nmap(r: str, use_pn_fallback: bool = True) -> bool:
     print_header(f"Checking if host {r} is active with nmap")
 
     def run_nmap(args):
-        result = subprocess.run(args, capture_output=True, text=True)
-        return result.stdout.strip()
+        """Run nmap command safely and return output (or empty string on failure)."""
+        try:
+            result = subprocess.run(args, capture_output=True, text=True, check=False)
+            return (result.stdout or "").strip()
+        except (FileNotFoundError, PermissionError) as e:
+            print_status(f"[!] Unable to run '{' '.join(args)}': {e}")
+            return ""
 
-    # ICMP echo request with nmap
-    command = ["sudo", "nmap", "-PE", "-sn", "-n", r]
-    output = run_nmap(command)
+    # Prefer non-sudo nmap so non-interactive runs don't crash when sudo is unavailable.
+    nmap_commands = [
+        ["nmap", "-PE", "-sn", "-n", r],
+        ["sudo", "nmap", "-PE", "-sn", "-n", r],
+    ]
 
-    if re.search(r"Host is up.*latency", output, re.IGNORECASE):
-        print_status(f"[+] Host {r} is active (nmap confirmed).")
-        return True
+    for command in nmap_commands:
+        output = run_nmap(command)
+        if re.search(r"Host is up.*latency", output, re.IGNORECASE):
+            print_status(f"[+] Host {r} is active (nmap confirmed).")
+            return True
 
     # Ping fallback
-    ping = subprocess.run(["ping", "-c", "1", "-W", "2", r], capture_output=True, text=True)
-    if "1 received" in ping.stdout or "bytes from" in ping.stdout:
-        print_status(f"[+] Host {r} is active (confirmed via ping fallback).")
-        return True
+    try:
+        ping = subprocess.run(["ping", "-c", "1", "-W", "2", r], capture_output=True, text=True, check=False)
+        if "1 received" in ping.stdout or "bytes from" in ping.stdout:
+            print_status(f"[+] Host {r} is active (confirmed via ping fallback).")
+            return True
+    except (FileNotFoundError, PermissionError) as e:
+        print_status(f"[!] Unable to run ping fallback: {e}")
     
     return False
 
