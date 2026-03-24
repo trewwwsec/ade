@@ -269,6 +269,69 @@ def test_module_enabled():
     return True
 
 
+def test_setup_modules_exact_selection():
+    """Test --modules selects exactly the requested modules."""
+    print("Testing exact --modules selection...")
+    from ade import cli, config
+
+    class _Args:
+        modules = "bloodhound,smb"
+        skip = None
+
+    old_enabled = config.ENABLED_MODULES
+    try:
+        cli._setup_modules(_Args())
+        assert config.ENABLED_MODULES == {"bloodhound", "smb"}, f"Unexpected module set: {config.ENABLED_MODULES}"
+    finally:
+        config.ENABLED_MODULES = old_enabled
+
+    print("✓ --modules uses exact selection")
+    return True
+
+
+def test_setup_modules_skip_selection():
+    """Test --skip removes only the requested modules."""
+    print("Testing --skip selection...")
+    from ade import cli, config
+
+    class _Args:
+        modules = None
+        skip = "bloodhound,adcs"
+
+    old_enabled = config.ENABLED_MODULES
+    try:
+        cli._setup_modules(_Args())
+        assert "bloodhound" not in config.ENABLED_MODULES
+        assert "adcs" not in config.ENABLED_MODULES
+        assert "smb" in config.ENABLED_MODULES
+    finally:
+        config.ENABLED_MODULES = old_enabled
+
+    print("✓ --skip selection works correctly")
+    return True
+
+
+def test_module_prerequisite_detection():
+    """Test module prerequisite reporting helpers."""
+    print("Testing module prerequisite detection...")
+    from ade import cli
+
+    class _Args:
+        username = ""
+        password = ""
+        domain = None
+        fqdn = None
+
+    missing_asrep = cli._missing_module_requirements("asrep", _Args())
+    missing_bloodhound = cli._missing_module_requirements("bloodhound", _Args())
+
+    assert missing_asrep == ["domain"], f"Unexpected AS-REP requirements: {missing_asrep}"
+    assert missing_bloodhound == ["credentials", "domain", "fqdn"], f"Unexpected bloodhound requirements: {missing_bloodhound}"
+
+    print("✓ Module prerequisites are reported correctly")
+    return True
+
+
 def test_hash_parsing():
     """Test that save_hashes correctly parses hash output."""
     print("Testing hash parsing...")
@@ -547,6 +610,9 @@ def run_all_tests():
         test_get_output_path,
         test_output_dir_creation,
         test_module_enabled,
+        test_setup_modules_exact_selection,
+        test_setup_modules_skip_selection,
+        test_module_prerequisite_detection,
         test_hash_parsing,
         test_init_debug_log_creates_output_dir_on_first_write,
         test_main_host_failure_does_not_create_output_dir,
