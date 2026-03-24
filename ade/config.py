@@ -59,6 +59,15 @@ def module_enabled(name):
         return True
     return name in ENABLED_MODULES
 
+
+def reset_runtime_state():
+    """Reset mutable per-run state so repeated main() calls stay isolated."""
+    global DEBUG, DEBUG_LOG_FILE, OUTPUT_DIR, ENABLED_MODULES
+    DEBUG = False
+    DEBUG_LOG_FILE = None
+    OUTPUT_DIR = None
+    ENABLED_MODULES = None
+
 # ASCII Art
 ASCII_ART_BANNER = r"""                        
                                                          
