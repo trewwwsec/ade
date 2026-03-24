@@ -6,7 +6,7 @@ User file management and RID brute-force enumeration for ADE.
 import os
 import re
 
-from .config import USERS_FILE
+from .config import USERS_FILE, ensure_output_parent, get_output_path
 from .utils import print_status, run_command
 
 
@@ -50,6 +50,7 @@ def update_users_file(new_unique: list, users_file: str, print_status_func) -> N
     # If the existing file had duplicates, rewrite it deduped first
     if file_had_dupes:
         try:
+            ensure_output_parent(users_file)
             with open(users_file, "w", encoding="utf-8") as ef:
                 for name in existing_usernames:
                     ef.write(name + "\n")
@@ -70,6 +71,7 @@ def update_users_file(new_unique: list, users_file: str, print_status_func) -> N
         action = "Created" if not file_exists else "Appended"
         
         try:
+            ensure_output_parent(users_file)
             with open(users_file, mode, encoding="utf-8") as ef:
                 for name in to_add_originals:
                     ef.write(name + "\n")
@@ -115,6 +117,7 @@ def update_users_file(new_unique: list, users_file: str, print_status_func) -> N
                 exact_lines.add(lower_name)  # mark as present for this run
 
         if to_append:
+            ensure_output_parent(users_file)
             with open(users_file, "a", encoding="utf-8") as ef:
                 for ln in to_append:
                     ef.write(ln + "\n")
@@ -129,7 +132,7 @@ def update_users_file(new_unique: list, users_file: str, print_status_func) -> N
 def create_users_from_nxc(
     r: str,
     users_file: str = USERS_FILE,
-    debug_log: str = "nxc_rid_debug.log",
+    debug_log: str = None,
     username: str = None,
     password: str = None,
     kerberos: bool = False,
@@ -160,6 +163,8 @@ def create_users_from_nxc(
         - Case-preserving username deduplication
         - Updates users.txt via update_users_file()
     """
+    if debug_log is None:
+        debug_log = get_output_path("nxc_rid_debug.log")
     abs_users = os.path.abspath(users_file)
 
     def parse_users(output):
@@ -260,6 +265,7 @@ def create_users_from_nxc(
 
     # Save raw output for debugging (last run's output)
     try:
+        ensure_output_parent(debug_log)
         with open(debug_log, "w", encoding="utf-8") as dbg:
             dbg.write(output or "")
     except Exception:

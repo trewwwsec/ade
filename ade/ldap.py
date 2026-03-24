@@ -6,7 +6,7 @@ LDAP enumeration for ADE.
 import shlex
 import os
 
-from .config import SECTION_ART, USERS_FILE
+from .config import SECTION_ART, USERS_FILE, get_output_path
 from .utils import print_status, print_header, run_command
 from .users import update_users_file
 
@@ -72,6 +72,6 @@ def ldap_enumeration(r: str, u: str, p: str, k: bool) -> None:
             new_unique.append(n)
 
         print_status(f"[+] Found unique usernames from LDAP.")
-        update_users_file(new_unique, USERS_FILE, print_status)
+        update_users_file(new_unique, get_output_path(USERS_FILE), print_status)
     else:
         print_status("[*] No usernames discovered via LDAP username extraction.")
