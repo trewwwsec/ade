@@ -160,8 +160,8 @@ install_package "bloodhound-ce" "bloodhound-ce" &
 # Wait for all background jobs
 wait
 echo ""
-echo -e "${BLUE}Installing ADE${NC}"
-install_package "ade" "git+https://github.com/blue-pho3nix/ade.git"
+echo -e "${BLUE}Installing ADE from the current checkout${NC}"
+install_package "ade" "."
 
 echo ""
 echo -e "${GREEN}Installation complete!${NC}"

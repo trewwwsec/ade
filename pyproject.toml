@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ade"
-version = "1.1.0"
+version = "1.2.0"
 description = "Automated Active Directory Enumeration Script for Educational/Lab Use"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,9 +34,9 @@ dependencies = [
 ade = "ade.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/blue-pho3nix/ade"
-Repository = "https://github.com/blue-pho3nix/ade"
-Issues = "https://github.com/blue-pho3nix/ade/issues"
+Homepage = "https://github.com/trewwwsec/ade"
+Repository = "https://github.com/trewwwsec/ade"
+Issues = "https://github.com/trewwwsec/ade/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

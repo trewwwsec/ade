@@ -20,11 +20,37 @@ ADE is a Python script that automates Active Directory (AD) enumeration in lab e
 
 ## Installation
 
+Install from the current checkout with `pip`, `pipx`, or `uv pip`:
+
 ```
-git clone https://github.com/blue-pho3nix/ade.git
+git clone https://github.com/trewwwsec/ade.git
 cd ade
-sudo apt update && sudo apt install git pipx 
-pipx ensurepath
+python -m pip install .
+```
+
+Install as an isolated CLI app with `pipx`:
+
+```sh
+git clone https://github.com/trewwwsec/ade.git
+cd ade
+pipx install .
+```
+
+Install into a `uv`-managed virtual environment:
+
+```sh
+git clone https://github.com/trewwwsec/ade.git
+cd ade
+uv venv .venv
+source .venv/bin/activate
+uv pip install .
+```
+
+Use the helper installer if you want ADE plus the external toolchain:
+
+```sh
+git clone https://github.com/trewwwsec/ade.git
+cd ade
 ./install.sh
 ```
 
