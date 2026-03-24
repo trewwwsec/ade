@@ -210,26 +210,28 @@ def test_get_output_path():
 
 
 def test_output_dir_creation():
-    """Test that output directory creation works."""
-    print("Testing output directory creation...")
-    from ade import config
+    """Test that resolving OUTPUT_DIR does not eagerly create it."""
+    print("Testing lazy output dir resolution...")
+    from ade import cli, config
     
     with tempfile.TemporaryDirectory() as tmpdir:
         test_dir = os.path.join(tmpdir, "ade_test_output")
         
         # Should not exist yet
         assert not os.path.exists(test_dir)
-        
-        os.makedirs(test_dir, exist_ok=True)
-        config.OUTPUT_DIR = os.path.abspath(test_dir)
-        
-        assert os.path.isdir(test_dir), "Output directory should have been created"
+
+        class _Args:
+            rhosts = "10.10.10.10"
+            output_dir = test_dir
+
+        resolved = cli._resolve_output_dir(_Args())
+        assert resolved == os.path.abspath(test_dir)
         assert config.OUTPUT_DIR == os.path.abspath(test_dir)
-        
-        # Reset
+        assert not os.path.exists(test_dir), "Output directory should not be created during CLI setup"
+
         config.OUTPUT_DIR = None
-    
-    print("✓ Output directory creation works correctly")
+
+    print("✓ Output directory is resolved lazily")
     return True
 
 
@@ -331,6 +333,69 @@ $krb5tgs$23$*websvc$CORP.LOCAL$HTTP/web.corp.local*$deadbeef...tgshash
         config.OUTPUT_DIR = old_output_dir
     
     print("✓ Hash parsing works correctly")
+    return True
+
+
+def test_init_debug_log_creates_output_dir_on_first_write():
+    """Test debug log creation lazily creates the configured output dir."""
+    print("Testing debug log lazy output dir creation...")
+    from ade import config, utils
+
+    old_output_dir = config.OUTPUT_DIR
+    old_debug_log = config.DEBUG_LOG_FILE
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_dir = os.path.join(tmpdir, "loot")
+        assert not os.path.exists(output_dir)
+
+        config.OUTPUT_DIR = output_dir
+        config.DEBUG_LOG_FILE = None
+        utils.init_debug_log()
+
+        assert os.path.isdir(output_dir), "Output directory should be created when writing the first artifact"
+        assert config.DEBUG_LOG_FILE is not None
+        assert os.path.exists(config.DEBUG_LOG_FILE), "Debug log file should be created"
+
+        os.unlink(config.DEBUG_LOG_FILE)
+
+    config.OUTPUT_DIR = old_output_dir
+    config.DEBUG_LOG_FILE = old_debug_log
+    print("✓ Debug log creation lazily creates output dir")
+    return True
+
+
+def test_main_host_failure_does_not_create_output_dir():
+    """Test startup failures do not leave an empty output directory behind."""
+    print("Testing startup failure avoids creating output dir...")
+    from ade import cli, config
+
+    old_output_dir = config.OUTPUT_DIR
+    old_debug = config.DEBUG
+    old_check_dependencies = cli.check_dependencies
+    old_check_host_nmap = cli.check_host_nmap
+    argv_backup = sys.argv[:]
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_dir = os.path.join(tmpdir, "loot")
+        cli.check_dependencies = lambda: None
+        cli.check_host_nmap = lambda _target: False
+        sys.argv = ["ade", "-r", "10.10.10.10", "-o", output_dir]
+
+        try:
+            try:
+                cli.main()
+            except SystemExit as exc:
+                assert exc.code == 1, f"Expected exit code 1, got {exc.code}"
+        finally:
+            cli.check_dependencies = old_check_dependencies
+            cli.check_host_nmap = old_check_host_nmap
+            sys.argv = argv_backup
+            config.OUTPUT_DIR = old_output_dir
+            config.DEBUG = old_debug
+
+        assert not os.path.exists(output_dir), "Startup failure should not create the output directory"
+
+    print("✓ Startup failure leaves no empty output dir behind")
     return True
 
 
@@ -483,6 +548,8 @@ def run_all_tests():
         test_output_dir_creation,
         test_module_enabled,
         test_hash_parsing,
+        test_init_debug_log_creates_output_dir_on_first_write,
+        test_main_host_failure_does_not_create_output_dir,
         test_user_spraying_uses_argv_for_output_dir_with_spaces,
         test_smb_enum_uses_ccache_found_in_cwd_and_copies_to_output_dir,
         test_host_check_handles_sudo_permission_error,

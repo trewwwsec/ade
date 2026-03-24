@@ -3,6 +3,8 @@
 Configuration constants and defaults for ADE.
 """
 
+import os
+
 # Version
 __version__ = "1.2.0"
 
@@ -16,6 +18,46 @@ PASSWORD_DEFAULT = ""
 
 # File paths
 USERS_FILE = "users.txt"
+
+# Output directory (set by CLI -o flag; None = use CWD)
+OUTPUT_DIR = None
+
+
+def get_output_path(filename):
+    """Return filename routed to OUTPUT_DIR (or CWD if unset)."""
+    if OUTPUT_DIR:
+        return os.path.join(OUTPUT_DIR, filename)
+    return filename
+
+
+def ensure_output_parent(path):
+    """Create the parent directory for an output path when needed."""
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent and not os.path.exists(parent):
+        os.makedirs(parent, exist_ok=True)
+
+
+# Selective module execution
+AVAILABLE_MODULES = [
+    "discovery",
+    "creds",
+    "ldap",
+    "smb",
+    "asrep",
+    "kerberoast",
+    "bloodhound",
+    "bloodyad",
+    "adcs",
+]
+
+ENABLED_MODULES = None  # None = all enabled
+
+
+def module_enabled(name):
+    """Check if a module is enabled for this run."""
+    if ENABLED_MODULES is None:
+        return True
+    return name in ENABLED_MODULES
 
 # ASCII Art
 ASCII_ART_BANNER = r"""                        

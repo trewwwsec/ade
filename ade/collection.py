@@ -6,7 +6,7 @@ Post-exploitation collection modules for ADE - BloodHound, bloodyAD, Certipy.
 import time
 from termcolor import colored
 
-from .config import SECTION_ART
+from .config import SECTION_ART, ensure_output_parent, get_output_path
 from .utils import print_status, print_header, run_command
 
 
@@ -32,6 +32,7 @@ def bloodhound(r: str, f: str, d: str, u: str, p: str, k: bool) -> None:
     
     while current_attempt <= max_retries:
         print_status(f"[*] Running BloodHound collector (Attempt {current_attempt}/{max_retries})...")
+        ensure_output_parent(get_output_path(u))
         
         _, return_code = run_command(
             [
@@ -43,7 +44,7 @@ def bloodhound(r: str, f: str, d: str, u: str, p: str, k: bool) -> None:
                 "-ns", r,
                 "--dns-timeout", "10",
                 "-c", "all",
-                "-op", u,
+                "-op", get_output_path(u),
                 *kerberos_auth,
                 "--zip"
             ],
@@ -114,9 +115,11 @@ def adcs_certipy(r: str, f: str, d: str, u: str, p: str, k: bool) -> None:
     # Certipy Find
     if k:
         # Kerberos Auth for Certipy
-        certipy_cmd = ["certipy", "find", "-target", f, "-u", f"{u}@{d}", "-p", p, "-k", "-dc-ip", r, "-vulnerable", "-stdout", "-ldap-scheme", "ldap"]
+        ensure_output_parent(get_output_path("certipy"))
+        certipy_cmd = ["certipy", "find", "-target", f, "-u", f"{u}@{d}", "-p", p, "-k", "-dc-ip", r, "-vulnerable", "-stdout", "-ldap-scheme", "ldap", "-output", get_output_path("certipy")]
         run_command(certipy_cmd, "Find vulnerable cert templates (Kerberos)")
     else:
         # NTLM Auth for Certipy (Also add -no-tls for consistency)
-        certipy_cmd = ["certipy", "find", "-u", u, "-p", p, "-dc-ip", r, "-vulnerable", "-stdout", "-ldap-scheme", "ldap"]
+        ensure_output_parent(get_output_path("certipy"))
+        certipy_cmd = ["certipy", "find", "-u", u, "-p", p, "-dc-ip", r, "-vulnerable", "-stdout", "-ldap-scheme", "ldap", "-output", get_output_path("certipy")]
         run_command(certipy_cmd, "Find vulnerable cert templates (NTLM)")

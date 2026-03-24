@@ -4,15 +4,17 @@ CLI module for ADE - argument parsing and main execution loop.
 """
 
 import argparse
+import datetime
+import os
 import sys
 from termcolor import colored
 
+from . import config
 from .config import (
     ASCII_ART_BANNER,
     ASCII_ART_FINISH,
     USERNAME_DEFAULT,
     PASSWORD_DEFAULT,
-    USERS_FILE,
 )
 from .utils import print_status, print_header
 from .dependencies import check_dependencies
@@ -23,6 +25,18 @@ from .ldap import ldap_enumeration
 from .smb import smb_enum
 from .attacks import user_spraying, kerberoasting
 from .collection import bloodhound, bloodyad, adcs_certipy
+
+
+def _resolve_output_dir(args):
+    """Resolve and store the output directory without creating it."""
+    if args.output_dir:
+        out_dir = args.output_dir
+    else:
+        date_str = datetime.datetime.now().strftime("%Y%m%d")
+        out_dir = f"ade_{args.rhosts}_{date_str}"
+
+    config.OUTPUT_DIR = os.path.abspath(out_dir)
+    return config.OUTPUT_DIR
 
 
 def main():
@@ -43,17 +57,15 @@ def main():
     parser.add_argument("-u", "--username", default=USERNAME_DEFAULT, help="Username for authenticated scans.")
     parser.add_argument("-p", "--password", default=PASSWORD_DEFAULT, help="Password for authenticated scans.")
     parser.add_argument("-v", "--debug", action="store_true", help="Enable debug mode for verbose output and logging.")
+    parser.add_argument("-o", "--output-dir", default=None, help="Output directory for loot (default: ade_<IP>_<date>/).")
 
 
     args = parser.parse_args()
+    out_dir = _resolve_output_dir(args)
 
     # Initialize Debug Mode
     if args.debug:
-        from . import config
         config.DEBUG = True
-        from .utils import init_debug_log, print_status
-        init_debug_log()
-        print_status("[*] Debug mode enabled - verbose output will be logged to file")
 
     args.kerberos = False
 
@@ -70,6 +82,7 @@ def main():
             print(colored(f"[CONFIG] FQDN:", "blue") + colored(f"      {args.fqdn or 'Not Provided. Script will attempt discovery.'}", "white"))
             print(colored(f"[CONFIG] User:", "blue") + colored(f"      {args.username or 'Anonymous/Guest'}", "white"))
             print(colored(f"[CONFIG] Password:", "blue") + colored(f"  {args.password or 'Not Provided'}", "white"))
+            print(colored(f"[CONFIG] Output:", "blue") + colored(f"    {out_dir}", "white"))
 
         run_authenticated_checks = False
         if not args.kerberos:
@@ -82,6 +95,11 @@ def main():
                 print_status(f"[-] Target IP {args.rhosts} did not respond to nmap scan.")
                 print_status("[-] Please check the IP address and network connectivity.")
                 sys.exit(1)
+
+        if args.debug and config.DEBUG_LOG_FILE is None:
+            from .utils import init_debug_log
+            init_debug_log()
+            print_status("[*] Debug mode enabled - verbose output will be logged to file")
 
         # This discovers domain/fqdn
         if not args.kerberos:

@@ -16,11 +16,13 @@ from . import config  # Import config module to access/modify global vars
 
 def init_debug_log():
     """Initialize the debug log file with a timestamp."""
+    from .config import ensure_output_parent, get_output_path
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"ade_debug_{timestamp}.log"
+    filename = get_output_path(f"ade_debug_{timestamp}.log")
     config.DEBUG_LOG_FILE = filename
     
     try:
+        ensure_output_parent(filename)
         with open(filename, "w", encoding="utf-8") as f:
             f.write(f"[*] ADE Debug Log Started at {datetime.datetime.now()}\n")
             f.write(f"[*] Version: {config.__version__}\n")

@@ -8,7 +8,7 @@ import os
 import re
 from termcolor import colored
 
-from .config import SECTION_ART, USERS_FILE, get_output_path
+from .config import SECTION_ART, USERS_FILE, ensure_output_parent, get_output_path
 from .utils import print_status, print_header, run_command
 from .policy import get_password_policy, line_matches
 
@@ -45,6 +45,7 @@ def save_hashes(output, pattern, filename, hashcat_mode, hash_type):
 
     path = get_output_path(filename)
     try:
+        ensure_output_parent(path)
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(hashes) + "\n")
         print_status(f"\n[+] Saved {len(hashes)} {hash_type} hash(es) to {path}")
