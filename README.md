@@ -1,5 +1,5 @@
 # ADE
-ADE is a Python script that automates Active Directory (AD) enumeration in lab environments, helping users on Hack The Box, Hack Smarter, TryHackMe, Proving Grounds, or exams like OSCP and CPTS streamline initial AD recon.
+ADE is a Python package and CLI that automates Active Directory (AD) enumeration in lab environments, helping users on Hack The Box, Hack Smarter, TryHackMe, Proving Grounds, or exams like OSCP and CPTS streamline initial AD recon.
 
 ![](https://github.com/user-attachments/assets/2e6ef45a-6347-41f2-9681-63496ded9f12)
 
@@ -46,6 +46,18 @@ source .venv/bin/activate
 uv pip install .
 ```
 
+> [!NOTE]
+> ADE configures `uv pip` to use `link-mode = "copy"` so installs stay quiet on
+> cross-filesystem setups like Docker bind mounts and lab containers.
+
+Install as a standalone CLI with `uv tool`:
+
+```sh
+git clone https://github.com/trewwwsec/ade.git
+cd ade
+uv tool install --link-mode copy .
+```
+
 Use the helper installer if you want ADE plus the external toolchain:
 
 ```sh
@@ -56,7 +68,7 @@ cd ade
 
 
 ## Dependencies
-The dependecies for the script are [certipy-ad](https://github.com/ly4k/Certipy), [netexec](https://github.com/Pennyw0rth/NetExec), [bloodhound-ce](https://github.com/dirkjanm/), [bloodyAD](https://github.com/CravateRouge/bloodyAD), and [Impacket](https://github.com/fortra/impacket)
+The dependencies for ADE are [certipy-ad](https://github.com/ly4k/Certipy), [netexec](https://github.com/Pennyw0rth/NetExec), [bloodhound-ce](https://github.com/dirkjanm/), [bloodyAD](https://github.com/CravateRouge/bloodyAD), and [Impacket](https://github.com/fortra/impacket)
 
 
 ## Key Features
@@ -122,9 +134,9 @@ Notes:
 
 ## Development / Testing
 
-Run the package directly:
+Run the package directly from the checkout with `uv`:
 ```
-python -m ade -r <box-ip>
+uv run python -m ade -r <box-ip>
 ```
 
 Run the test suite with `uv`:
@@ -145,6 +157,5 @@ uv run python tests/test_ade.py
 
 ---
 
-## TODO
-- [ ] Add additional improvements and features as needed
-- [ ] Add AS-REP roastable accounts to request SPNs without authentication
+## Roadmap
+- Add AS-REP roastable accounts to request SPNs without authentication.

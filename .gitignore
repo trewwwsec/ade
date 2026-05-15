@@ -1,7 +1,22 @@
+# Virtual environments and package/build output
 .venv/
 *.egg-info/
-*.egg-info/
+build/
+dist/
+
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local tool/editor/OS state
+.DS_Store
+.vscode/
+.qodo/
+uv.lock
+
+# ADE runtime artifacts
 ade_debug_*.log
 ROADMAP.md

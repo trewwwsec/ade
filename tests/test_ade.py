@@ -8,6 +8,7 @@ import os
 import tempfile
 import io
 import contextlib
+from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -51,6 +52,20 @@ def test_config_values():
     assert len(AVAILABLE_MODULES) == 9, f"Should have 9 modules, got {len(AVAILABLE_MODULES)}"
     print("✓ Config values correct")
     print(f"✓ Version: {__version__}")
+    return True
+
+
+def test_uv_install_config():
+    """Test uv install config suppresses cross-filesystem link warnings."""
+    print("Testing uv install config...")
+
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    content = pyproject.read_text(encoding="utf-8")
+
+    assert "[tool.uv.pip]" in content, "Expected a [tool.uv.pip] section in pyproject.toml"
+    assert 'link-mode = "copy"' in content, "Expected uv pip installs to force link-mode = copy"
+
+    print("✓ uv install config is present")
     return True
 
 
@@ -730,6 +745,7 @@ def run_all_tests():
     tests = [
         test_imports,
         test_config_values,
+        test_uv_install_config,
         test_line_matches,
         test_print_functions,
         test_cli_help,

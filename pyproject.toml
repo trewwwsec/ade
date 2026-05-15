@@ -38,6 +38,9 @@ Homepage = "https://github.com/trewwwsec/ade"
 Repository = "https://github.com/trewwwsec/ade"
 Issues = "https://github.com/trewwwsec/ade/issues"
 
+[tool.uv.pip]
+link-mode = "copy"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ade*"]

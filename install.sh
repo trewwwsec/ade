@@ -134,9 +134,9 @@ install_package() {
             echo -e "${RED}✗ Failed to install $package${NC}"
         fi
     else
-        local uv_cmd="uv tool install"
+        local uv_cmd="uv tool install --link-mode copy"
         if [ "$USE_PYTHON_313" = "true" ]; then
-            uv_cmd="uv tool install --python 3.13"
+            uv_cmd="uv tool install --link-mode copy --python 3.13"
         fi
         if $uv_cmd "$install_source" &>/dev/null; then
             echo -e "${GREEN}✓ $package installed successfully${NC}"
