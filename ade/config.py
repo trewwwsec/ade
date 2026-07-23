@@ -48,6 +48,9 @@ AVAILABLE_MODULES = [
     "bloodhound",
     "bloodyad",
     "adcs",
+    "smb-signing",
+    "maq",
+    "summary",
 ]
 
 ENABLED_MODULES = None  # None = all enabled
@@ -255,6 +258,45 @@ SECTION_ART = {
                        *  
                  *      **
           *  *      * *   """,
+
+    "smb_signing": r"""SMB Signing Check
+**  * * *  **   **  
+  *  * * *   *     
+*         *   *   *
+           *       
+*    *  *       *  
+    *             *
+ *    *  *  *  *   
+  *              * 
+         *    *   *
+                   
+  *         *   *  
+        *          """,
+
+    "machine_account_quota": r"""MachineAccountQuota Check
+*   *   *   * *   ** * *  
+*  *  *  *    *   *     * 
+    *  *  *  *         *  
+*           *    *  *      
+              *  *  *   *  
+   *  *  *  *           * 
+*          *  *  *       *
+  *  *  *                *
+           *  *   *  *   *
+*    *                   *
+          *         *     """,
+
+    "findings_summary": r"""Findings Summary
+* * *  *   * *  **   *
+ *   *  *  *   *   * *
+  *  *  *  *       *  
+*  *  *     *  *      
+  *       *     *     
+*    *  *       *   * 
+              *      *
+*   *      *         *
+  *  *           *    
+*      *         *   """,
 }
 
 # Tag colors for status messages

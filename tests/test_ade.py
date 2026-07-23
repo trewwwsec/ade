@@ -49,7 +49,7 @@ def test_config_values():
     assert __version__ == "1.2.0", f"Version should be 1.2.0, got {__version__}"
     assert "discovery" in AVAILABLE_MODULES, "discovery should be in AVAILABLE_MODULES"
     assert "kerberoast" in AVAILABLE_MODULES, "kerberoast should be in AVAILABLE_MODULES"
-    assert len(AVAILABLE_MODULES) == 9, f"Should have 9 modules, got {len(AVAILABLE_MODULES)}"
+    assert len(AVAILABLE_MODULES) == 12, f"Should have 12 modules, got {len(AVAILABLE_MODULES)}"
     print("✓ Config values correct")
     print(f"✓ Version: {__version__}")
     return True
@@ -416,6 +416,129 @@ $krb5tgs$23$*websvc$CORP.LOCAL$HTTP/web.corp.local*$deadbeef...tgshash
     return True
 
 
+def test_asrep_roastable_user_extraction():
+    """Test AS-REP hash output yields unique no-preauth usernames."""
+    print("Testing AS-REP roastable user extraction...")
+    from ade.attacks import _extract_asrep_roastable_users
+
+    output = """
+$krb5asrep$23$JSmith@CORP.LOCAL:abc123
+$krb5asrep$23$admin@CORP.LOCAL:def456
+$krb5asrep$23$jsmith@CORP.LOCAL:duplicate
+not a hash
+"""
+
+    assert _extract_asrep_roastable_users(output) == ["JSmith", "admin"]
+    assert _extract_asrep_roastable_users("") == []
+    assert _extract_asrep_roastable_users(None) == []
+
+    print("✓ AS-REP roastable usernames are extracted correctly")
+    return True
+
+
+def test_get_user_spns_no_preauth_args_with_spaced_users_file():
+    """Test no-preauth GetUserSPNs.py argv construction is shell-safe."""
+    print("Testing no-preauth GetUserSPNs.py argv construction...")
+    from ade.attacks import _get_user_spns_no_preauth_args
+
+    users_file = "/tmp/ade spaced/users.txt"
+    cmd = _get_user_spns_no_preauth_args("CORP.LOCAL", "dc01.corp.local", users_file, "jsmith")
+
+    assert isinstance(cmd, list), "Command should be an argv list"
+    assert cmd[0] == "GetUserSPNs.py"
+    assert cmd == [
+        "GetUserSPNs.py",
+        "-no-preauth",
+        "jsmith",
+        "-usersfile",
+        users_file,
+        "-dc-host",
+        "dc01.corp.local",
+        "CORP.LOCAL/",
+    ]
+
+    print("✓ no-preauth GetUserSPNs.py argv construction is correct")
+    return True
+
+
+def test_asrep_roastable_users_request_spns_without_auth():
+    """Test AS-REP roastable users trigger no-auth SPN requests and save TGS hashes."""
+    print("Testing no-auth SPN requests from AS-REP roastable users...")
+    from ade import attacks, config
+
+    old_output_dir = config.OUTPUT_DIR
+    old_run_command = attacks.run_command
+    calls = []
+
+    with tempfile.TemporaryDirectory(prefix="ade spaced ") as tmpdir:
+        users_file = os.path.join(tmpdir, "users.txt")
+        with open(users_file, "w", encoding="utf-8") as f:
+            f.write("svc-http\n")
+
+        def fake_run_command(cmd, title, **kwargs):
+            calls.append((cmd, title, kwargs))
+            return ("$krb5tgs$23$*svc-http$CORP.LOCAL$HTTP/web*$checksum$cipher", 0)
+
+        config.OUTPUT_DIR = tmpdir
+        attacks.run_command = fake_run_command
+
+        try:
+            count = attacks.request_spns_with_asrep_roastable_users(
+                "$krb5asrep$23$jsmith@CORP.LOCAL:hashdata",
+                "CORP.LOCAL",
+                "dc01.corp.local",
+                users_file,
+            )
+        finally:
+            config.OUTPUT_DIR = old_output_dir
+            attacks.run_command = old_run_command
+
+        hash_file = os.path.join(tmpdir, "kerberoast_hashes.txt")
+        assert count == 1, f"Expected one no-auth Kerberoast hash, got {count}"
+        assert os.path.exists(hash_file), "No-auth Kerberoast hash file should be created"
+        assert "$krb5tgs$23$*svc-http" in Path(hash_file).read_text(encoding="utf-8")
+
+    assert len(calls) == 1
+    cmd, title, kwargs = calls[0]
+    assert cmd[0] == "GetUserSPNs.py"
+    assert "-no-preauth" in cmd
+    assert "jsmith" in cmd
+    assert "-usersfile" in cmd
+    assert " " in cmd[cmd.index("-usersfile") + 1], "Test requires a spaced users file path"
+    assert "-dc-host" in cmd
+    assert kwargs.get("capture_output") is True
+    assert "without authentication" in title
+
+    print("✓ AS-REP roastable users request SPNs without authentication")
+    return True
+
+
+def test_asrep_spn_request_skips_without_fqdn():
+    """Test no-auth SPN requests skip cleanly when FQDN is unavailable."""
+    print("Testing no-auth SPN request FQDN prerequisite...")
+    from ade import attacks
+
+    old_run_command = attacks.run_command
+    calls = []
+    attacks.run_command = lambda *args, **kwargs: calls.append((args, kwargs))
+
+    try:
+        count = attacks.request_spns_with_asrep_roastable_users(
+            "$krb5asrep$23$jsmith@CORP.LOCAL:hashdata",
+            "CORP.LOCAL",
+            None,
+            "/tmp/users.txt",
+        )
+    finally:
+        attacks.run_command = old_run_command
+
+    assert count == 0
+    assert calls == [], "GetUserSPNs.py should not run without FQDN"
+
+    print("✓ no-auth SPN requests skip without FQDN")
+    return True
+
+
 def test_init_debug_log_creates_output_dir_on_first_write():
     """Test debug log creation lazily creates the configured output dir."""
     print("Testing debug log lazy output dir creation...")
@@ -495,6 +618,9 @@ def test_main_resets_runtime_state_between_runs():
     old_bloodhound = cli.bloodhound
     old_bloodyad = cli.bloodyad
     old_adcs_certipy = cli.adcs_certipy
+    old_smb_signing = cli.smb_signing
+    old_machine_account_quota = cli.machine_account_quota
+    old_generate_summary = cli.generate_summary
     argv_backup = sys.argv[:]
 
     cli.check_dependencies = lambda: None
@@ -508,6 +634,9 @@ def test_main_resets_runtime_state_between_runs():
     cli.bloodhound = lambda *_args, **_kwargs: None
     cli.bloodyad = lambda *_args, **_kwargs: None
     cli.adcs_certipy = lambda *_args, **_kwargs: None
+    cli.smb_signing = lambda *_args, **_kwargs: None
+    cli.machine_account_quota = lambda *_args, **_kwargs: None
+    cli.generate_summary = lambda *_args, **_kwargs: None
 
     try:
         sys.argv = ["ade", "-r", "10.10.10.10", "-o", "/tmp/ade_run_one", "--modules", "smb", "-v"]
@@ -535,6 +664,9 @@ def test_main_resets_runtime_state_between_runs():
         cli.bloodhound = old_bloodhound
         cli.bloodyad = old_bloodyad
         cli.adcs_certipy = old_adcs_certipy
+        cli.smb_signing = old_smb_signing
+        cli.machine_account_quota = old_machine_account_quota
+        cli.generate_summary = old_generate_summary
         sys.argv = argv_backup
         config.reset_runtime_state()
 
@@ -706,6 +838,45 @@ def test_run_command_filters_raw_output_by_default():
     return True
 
 
+def test_run_command_exception_clears_result_on_retry():
+    """Test run_command clears result when subprocess.run raises during retry."""
+    print("Testing run_command() exception clears stale result on retry...")
+    from ade import config, utils
+
+    original_run = utils.subprocess.run
+    old_debug = config.DEBUG
+
+    call_count = [0]
+
+    class _Result:
+        stdout = "valid output"
+        stderr = ""
+        returncode = 0
+
+    def fake_run(cmd, shell, capture_output, text, check):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            return _Result()
+        # Second call raises an exception
+        raise OSError("command not found")
+
+    utils.subprocess.run = fake_run
+    config.DEBUG = True
+
+    try:
+        # Should not crash; first call succeeds, second raises, result cleared to None
+        _, rc = utils.run_command(["demo"], "Demo retry command",
+                                  capture_output=True, retry_on_invalid=True, max_retries=2)
+        assert rc == 1, f"Expected return code 1 after exception, got {rc}"
+        assert call_count[0] == 2, f"Expected 2 attempts, got {call_count[0]}"
+    finally:
+        utils.subprocess.run = original_run
+        config.DEBUG = old_debug
+
+    print("✓ run_command() clears result on exception retry")
+    return True
+
+
 def test_run_command_shows_raw_output_in_verbose_mode():
     """Test run_command prints full subprocess output in verbose mode."""
     print("Testing run_command() verbose mode...")
@@ -758,6 +929,10 @@ def run_all_tests():
         test_setup_modules_skip_selection,
         test_module_prerequisite_detection,
         test_hash_parsing,
+        test_asrep_roastable_user_extraction,
+        test_get_user_spns_no_preauth_args_with_spaced_users_file,
+        test_asrep_roastable_users_request_spns_without_auth,
+        test_asrep_spn_request_skips_without_fqdn,
         test_init_debug_log_creates_output_dir_on_first_write,
         test_main_host_failure_does_not_create_output_dir,
         test_main_resets_runtime_state_between_runs,
@@ -766,6 +941,7 @@ def run_all_tests():
         test_host_check_handles_sudo_permission_error,
         test_run_command_filters_raw_output_by_default,
         test_run_command_shows_raw_output_in_verbose_mode,
+        test_run_command_exception_clears_result_on_retry,
     ]
     
     passed = 0

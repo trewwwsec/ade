@@ -80,7 +80,7 @@ The dependencies for ADE are [certipy-ad](https://github.com/ly4k/Certipy), [net
 
 ### Initial Access & Credential Attacks
 - **User Spraying:** If run without credentials, it attempts user:user logins for all discovered accounts.
-- **AS-REP Roasting:** Uses the generated users.txt to find accounts vulnerable to offline password cracking.
+- **AS-REP Roasting:** Uses the generated users.txt to find accounts vulnerable to offline password cracking, then uses any AS-REP roastable accounts to request SPN/TGS roast material without valid credentials when FQDN context is available.
 - **Kerberoasting:** Searches for service accounts and requests their tickets, providing hashes to crack offline.
 - **Auto-Kerberos Switching:** Detects if Kerberos is required. If NTLM is unsupported, ADE enables Kerberos mode and restarts the workflow.
 
@@ -91,6 +91,8 @@ The dependencies for ADE are [certipy-ad](https://github.com/ly4k/Certipy), [net
 - **BloodHound Collection:** Executes the BloodHound data collector, automatically retrying on failure, and outputs a ZIP that can be imported into BloodHound.
 - **Permission Checks:** Scans Active Directory with bloodyAD to find items your credentials can change (like user accounts or groups).
 - **ADCS Checks:** Probes for Active Directory Certificate Services and then uses Certipy to find misconfigured templates that allow for privilege escalation.
+- **Security Checks:** Probes for SMB signing requirements (relay attack viability) and MachineAccountQuota (RBCD attack surface).
+- **Findings Summary:** Generates a structured `ade_summary.txt` report with artifact inventory, attack path suggestions, and quick-reference commands — ready for your exam writeup.
 
 ## Usage
 > [!TIP]
@@ -124,13 +126,17 @@ ade -r <box-ip> --skip bloodhound,adcs
 
 Current module names:
 ```
-discovery, creds, ldap, smb, asrep, kerberoast, bloodhound, bloodyad, adcs
+discovery, creds, ldap, smb, asrep, kerberoast, bloodhound, bloodyad, adcs,
+smb-signing, maq, summary
 ```
 
 Notes:
 - `--modules` is exact. ADE only runs the modules you name.
-- Some modules require prerequisites. For example, `asrep` needs a domain, and `kerberoast` / `bloodhound` / `bloodyad` / `adcs` need credentials plus discovered or supplied domain/FQDN context.
+- Some modules require prerequisites. For example, `asrep` needs a domain for AS-REP roasting and uses FQDN when available for no-auth SPN requests; `kerberoast` / `bloodhound` / `bloodyad` / `adcs` / `maq` need credentials plus discovered or supplied domain/FQDN context.
+- `smb-signing` and `summary` work with or without credentials.
 - The output directory is resolved at startup but created only when ADE actually writes the first artifact.
+
+See the [docs/](docs/ADE.md) directory for the full Obsidian wiki: module references, workflows, attack paths, and a CPTS exam guide.
 
 ## Development / Testing
 
@@ -156,6 +162,3 @@ uv run python tests/test_ade.py
 > If you have any issues or requests, reach out on [Discord](https://discord.gg/TujAjYXJjr) (Blue Pho3nix).
 
 ---
-
-## Roadmap
-- Add AS-REP roastable accounts to request SPNs without authentication.

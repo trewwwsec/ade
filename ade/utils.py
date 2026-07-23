@@ -194,6 +194,7 @@ def run_command(
             error_msg = f"[!] Execution failed: {e}"
             print_status(error_msg)
             log_debug(error_msg)
+            result = None
             full_output = ""
             return_code = 1
 

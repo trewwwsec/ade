@@ -27,6 +27,8 @@ from .ldap import ldap_enumeration
 from .smb import smb_enum
 from .attacks import user_spraying, kerberoasting
 from .collection import bloodhound, bloodyad, adcs_certipy
+from .checks import smb_signing, machine_account_quota
+from .summary import generate_summary
 
 
 def _resolve_output_dir(args):
@@ -78,6 +80,14 @@ def _missing_module_requirements(module_name, args):
             missing.append("domain")
         if not args.fqdn:
             missing.append("fqdn")
+        return missing
+
+    if module_name == "maq":
+        missing = []
+        if not args.username or not args.password:
+            missing.append("credentials")
+        if not args.domain:
+            missing.append("domain")
         return missing
 
     return []
@@ -199,7 +209,7 @@ def main():
                 if missing:
                     _report_module_skip("asrep", missing)
                 else:
-                    user_spraying(args.rhosts, args.domain, args.username, args.password, k=args.kerberos, cred_status=cred_status)
+                    user_spraying(args.rhosts, args.domain, args.fqdn, args.username, args.password, k=args.kerberos, cred_status=cred_status)
 
             # Authenticated-only follow-ups
             if module_enabled("kerberoast"):
@@ -237,6 +247,29 @@ def main():
                     _report_module_skip("adcs", missing)
                 else:
                     adcs_certipy(args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos)
+
+            # CPTS-focused checks (no credential prerequisites for smb-signing)
+            if module_enabled("smb-signing"):
+                smb_signing(args.rhosts, args.username, args.password)
+
+            if module_enabled("maq"):
+                missing = _missing_module_requirements("maq", args)
+                if missing:
+                    _report_module_skip("maq", missing)
+                else:
+                    machine_account_quota(args.rhosts, args.username, args.password, args.domain, args.kerberos)
+
+            # Findings summary — always runs last when enabled
+            if module_enabled("summary"):
+                generate_summary(
+                    args.rhosts,
+                    args.domain,
+                    args.fqdn,
+                    args.username,
+                    args.kerberos,
+                    out_dir,
+                    cred_status,
+                )
 
         print_header(f"\n{ASCII_ART_FINISH}\n")
     finally:
