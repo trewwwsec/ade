@@ -23,7 +23,7 @@ Run these in parallel if possible. No credentials needed.
 ade -r <dc-ip> -o loot
 
 # This runs: discovery, ldap, smb (anonymous), asrep (roasting + spraying),
-#           smb-signing, summary
+#           smb-signing, gpp, summary
 ```
 
 **Expected output:**
@@ -32,6 +32,7 @@ ade -r <dc-ip> -o loot
 - `asrep_hashes.txt` (if any roastable accounts)
 - SMB share listing
 - SMB signing status
+- `gpp_passwords.txt` (if SYSVOL has stale GPP credentials — instant win, no cracking)
 
 **While that runs:**
 ```bash
@@ -61,6 +62,7 @@ ade -r <dc-ip> -u <user> -p <pass> -d <domain> -f <fqdn> \
 - [[adcs]] → certipy findings
 - [[smb]] → authenticated share access
 - [[maq]] → machine account quota
+- [[laps]] → `laps_passwords.txt` (instant local admin creds, if readable)
 - [[summary]] → full report in `ade_summary.txt`
 
 ## Phase 3: Crack + Exploit (~20 min)

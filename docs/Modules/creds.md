@@ -4,7 +4,7 @@ tags: [ade, module, credentials, kerberos]
 
 # creds
 
-> **Order:** 2 of 12  
+> **Order:** 2 of 14  
 > **Auth:** authenticated  
 > **Prerequisites:** username, password  
 > **Tools:** nxc

@@ -4,7 +4,7 @@ tags: [ade, module, ldap, users]
 
 # ldap
 
-> **Order:** 3 of 12  
+> **Order:** 3 of 14  
 > **Auth:** anonymous or authenticated  
 > **Prerequisites:** none  
 > **Tools:** nxc

@@ -92,6 +92,8 @@ The dependencies for ADE are [certipy-ad](https://github.com/ly4k/Certipy), [net
 - **Permission Checks:** Scans Active Directory with bloodyAD to find items your credentials can change (like user accounts or groups).
 - **ADCS Checks:** Probes for Active Directory Certificate Services and then uses Certipy to find misconfigured templates that allow for privilege escalation.
 - **Security Checks:** Probes for SMB signing requirements (relay attack viability) and MachineAccountQuota (RBCD attack surface).
+- **GPP Credential Recovery:** Recovers plaintext credentials cached in SYSVOL via Group Policy Preferences (cpassword) and autologon registry entries.
+- **LAPS Password Check:** Checks whether the current credentials can read LAPS local administrator passwords.
 - **Findings Summary:** Generates a structured `ade_summary.txt` report with artifact inventory, attack path suggestions, and quick-reference commands — ready for your exam writeup.
 
 ## Usage
@@ -127,13 +129,13 @@ ade -r <box-ip> --skip bloodhound,adcs
 Current module names:
 ```
 discovery, creds, ldap, smb, asrep, kerberoast, bloodhound, bloodyad, adcs,
-smb-signing, maq, summary
+smb-signing, gpp, maq, laps, summary
 ```
 
 Notes:
 - `--modules` is exact. ADE only runs the modules you name.
-- Some modules require prerequisites. For example, `asrep` needs a domain for AS-REP roasting and uses FQDN when available for no-auth SPN requests; `kerberoast` / `bloodhound` / `bloodyad` / `adcs` / `maq` need credentials plus discovered or supplied domain/FQDN context.
-- `smb-signing` and `summary` work with or without credentials.
+- Some modules require prerequisites. For example, `asrep` needs a domain for AS-REP roasting and uses FQDN when available for no-auth SPN requests; `kerberoast` / `bloodhound` / `bloodyad` / `adcs` / `maq` / `laps` need credentials plus discovered or supplied domain/FQDN context.
+- `smb-signing`, `gpp`, and `summary` work with or without credentials.
 - The output directory is resolved at startup but created only when ADE actually writes the first artifact.
 
 See the [docs/](docs/ADE.md) directory for the full Obsidian wiki: module references, workflows, attack paths, and a CPTS exam guide.

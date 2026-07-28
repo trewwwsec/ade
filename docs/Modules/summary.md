@@ -4,7 +4,7 @@ tags: [ade, module, summary, report, exam]
 
 # summary
 
-> **Order:** 12 of 12  
+> **Order:** 14 of 14  
 > **Auth:** none (reads existing artifacts)  
 > **Prerequisites:** none  
 > **Tools:** none (pure Python)
@@ -66,6 +66,6 @@ The report is written to `<output-dir>/ade_summary.txt`.
 
 - [[CPTS Exam Guide]] — how to use this in exams
 - [[Output Artifacts]] — all output files
-- [[maq]] — previous module
+- [[laps]] — previous module
 - [[Modules]] — full module list
 - [[ADE]] — back to hub

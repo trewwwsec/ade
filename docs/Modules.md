@@ -4,7 +4,7 @@ tags: [ade, modules, reference]
 
 # Modules
 
-ADE has 12 modules executed in a fixed order. Each module can be individually enabled or disabled with `--modules` or `--skip`.
+ADE has 14 modules executed in a fixed order. Each module can be individually enabled or disabled with `--modules` or `--skip`.
 
 ## Execution Order
 
@@ -18,8 +18,10 @@ ADE has 12 modules executed in a fixed order. Each module can be individually en
 8. [[bloodyad]] — Writable object permission checks
 9. [[adcs]] — ADCS enumeration via Certipy
 10. [[smb-signing]] — SMB signing requirement check
-11. [[maq]] — MachineAccountQuota check
-12. [[summary]] — Findings summary and exam report
+11. [[gpp]] — GPP/cpassword credential recovery
+12. [[maq]] — MachineAccountQuota check
+13. [[laps]] — LAPS password readability check
+14. [[summary]] — Findings summary and exam report
 
 ## Prerequisites Matrix
 
@@ -35,7 +37,9 @@ ADE has 12 modules executed in a fixed order. Each module can be individually en
 | [[bloodyad]] | ✅ | ✅ | ✅ | ✅ |
 | [[adcs]] | ✅ | ✅ | ✅ | ✅ |
 | [[smb-signing]] | ❌ | ❌ | ❌ | ❌ |
+| [[gpp]] | ❌ | ❌ | ❌ | ❌ |
 | [[maq]] | ✅ | ✅ | ❌ | ✅ |
+| [[laps]] | ✅ | ✅ | ❌ | ✅ |
 | [[summary]] | ❌ | ❌ | ❌ | ✅ (reports) |
 
 > ✅ = required, ❌ = not required, ○ = optional (enables additional features)

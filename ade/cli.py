@@ -27,7 +27,7 @@ from .ldap import ldap_enumeration
 from .smb import smb_enum
 from .attacks import user_spraying, kerberoasting
 from .collection import bloodhound, bloodyad, adcs_certipy
-from .checks import smb_signing, machine_account_quota
+from .checks import smb_signing, machine_account_quota, gpp_passwords, laps_readable
 from .summary import generate_summary
 
 
@@ -82,7 +82,7 @@ def _missing_module_requirements(module_name, args):
             missing.append("fqdn")
         return missing
 
-    if module_name == "maq":
+    if module_name in {"maq", "laps"}:
         missing = []
         if not args.username or not args.password:
             missing.append("credentials")
@@ -248,9 +248,12 @@ def main():
                 else:
                     adcs_certipy(args.rhosts, args.fqdn, args.domain, args.username, args.password, args.kerberos)
 
-            # CPTS-focused checks (no credential prerequisites for smb-signing)
+            # CPTS-focused checks (no credential prerequisites for smb-signing/gpp)
             if module_enabled("smb-signing"):
                 smb_signing(args.rhosts, args.username, args.password)
+
+            if module_enabled("gpp"):
+                gpp_passwords(args.rhosts, args.username, args.password)
 
             if module_enabled("maq"):
                 missing = _missing_module_requirements("maq", args)
@@ -258,6 +261,13 @@ def main():
                     _report_module_skip("maq", missing)
                 else:
                     machine_account_quota(args.rhosts, args.username, args.password, args.domain, args.kerberos)
+
+            if module_enabled("laps"):
+                missing = _missing_module_requirements("laps", args)
+                if missing:
+                    _report_module_skip("laps", missing)
+                else:
+                    laps_readable(args.rhosts, args.username, args.password, args.domain, args.kerberos)
 
             # Findings summary — always runs last when enabled
             if module_enabled("summary"):

@@ -49,7 +49,9 @@ mindmap
         bloodyad :: Writable objects
         adcs :: Certipy scan
       Phase 5::CPTS
+        gpp :: GPP/cpassword recovery
         maq :: MachineAccountQuota
+        laps :: LAPS readability
         summary :: Findings report
     Workflows
       Anonymous
@@ -80,6 +82,8 @@ mindmap
       users.txt
       asrep_hashes.txt :: Mode 18200
       kerberoast_hashes.txt :: Mode 13100
+      gpp_passwords.txt :: GPP credentials
+      laps_passwords.txt :: LAPS passwords
       user.ccache :: Kerberos ticket
       certipy/ :: ADCS findings
       username/ :: BloodHound ZIP
@@ -110,7 +114,7 @@ mindmap
 - [[Modules]]
 - [[Output Artifacts]]
 
-### Modules (1-12)
+### Modules (1-14)
 - [[discovery]]
 - [[creds]]
 - [[ldap]]
@@ -121,13 +125,17 @@ mindmap
 - [[bloodyad]]
 - [[adcs]]
 - [[smb-signing]]
+- [[gpp]]
 - [[maq]]
+- [[laps]]
 - [[summary]]
 
 ### Artifacts
 - [[users.txt]]
 - [[asrep_hashes.txt]]
 - [[kerberoast_hashes.txt]]
+- [[gpp_passwords.txt]]
+- [[laps_passwords.txt]]
 - [[ade_summary.txt]]
 
 ### Guides

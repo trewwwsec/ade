@@ -4,7 +4,7 @@ tags: [ade, module, smb, shares, kerberos, rid-brute]
 
 # smb
 
-> **Order:** 4 of 12  
+> **Order:** 4 of 14  
 > **Auth:** anonymous or authenticated  
 > **Prerequisites:** none  
 > **Tools:** nxc, getTGT.py

@@ -4,7 +4,7 @@ tags: [ade, module, asrep, spraying, kerberos]
 
 # asrep
 
-> **Order:** 5 of 12  
+> **Order:** 5 of 14  
 > **Auth:** anonymous or authenticated  
 > **Prerequisites:** domain (FQDN optional for no-auth SPN)  
 > **Tools:** GetNPUsers.py, GetUserSPNs.py, nxc

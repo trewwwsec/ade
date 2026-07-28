@@ -4,7 +4,7 @@ tags: [ade, module, kerberoast, tgs, kerberos]
 
 # kerberoast
 
-> **Order:** 6 of 12  
+> **Order:** 6 of 14  
 > **Auth:** authenticated  
 > **Prerequisites:** domain, fqdn, credentials  
 > **Tools:** GetUserSPNs.py

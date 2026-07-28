@@ -4,7 +4,7 @@ tags: [ade, module, smb, signing, relay]
 
 # smb-signing
 
-> **Order:** 10 of 12  
+> **Order:** 10 of 14  
 > **Auth:** anonymous or authenticated  
 > **Prerequisites:** none  
 > **Tools:** nxc
@@ -57,7 +57,7 @@ If signing is disabled:
 ## Related
 
 - [[adcs]] — previous module (ESC8 needs no signing)
-- [[maq]] — next module
+- [[gpp]] — next module
 - [[Attack Paths#Relay|Relay Attack Paths]]
 - [[Modules]] — full module list
 - [[ADE]] — back to hub

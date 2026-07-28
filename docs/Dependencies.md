@@ -57,7 +57,9 @@ Or use the helper: `./install.sh` — see [[Installation]].
 | [[bloodyad]] | bloodyAD |
 | [[adcs]] | nxc, certipy |
 | [[smb-signing]] | nxc |
+| [[gpp]] | nxc |
 | [[maq]] | nxc |
+| [[laps]] | nxc |
 | [[summary]] | _(none — reads artifacts)_ |
 
 ## Detection

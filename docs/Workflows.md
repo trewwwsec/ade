@@ -13,7 +13,7 @@ ade -r 10.10.10.161
 ```
 
 **Modules executed:**
-[[discovery]] → [[ldap]] → [[smb]] (anonymous/guest) → [[asrep]] (spraying + roasting) → [[smb-signing]] → [[summary]]
+[[discovery]] → [[ldap]] → [[smb]] (anonymous/guest) → [[asrep]] (spraying + roasting) → [[smb-signing]] → [[gpp]] → [[summary]]
 
 **What you get:**
 - Domain name and FQDN (if discoverable)
@@ -22,9 +22,10 @@ ade -r 10.10.10.161
 - AS-REP roastable accounts (hashes)
 - User:user spray results
 - SMB signing status
+- GPP/cpassword credentials, if any are left in SYSVOL
 
 **No credentials path is blocked:**
-- [[kerberoast]], [[bloodhound]], [[bloodyad]], [[adcs]], [[maq]] skipped
+- [[kerberoast]], [[bloodhound]], [[bloodyad]], [[adcs]], [[maq]], [[laps]] skipped
 - Any module requiring creds shows: `[!] Skipping <module>: missing required credentials, domain, fqdn.`
 
 ---
@@ -43,7 +44,8 @@ ade -r 10.10.10.161 -u jsmith -p 'Password123!'
 [[bloodhound]] → AD data ZIP  
 [[bloodyad]] → writable objects  
 [[adcs]] → certificate templates  
-[[maq]] → machine account quota
+[[maq]] → machine account quota  
+[[laps]] → readable LAPS passwords
 
 **Pro tip:** Provide domain and FQDN upfront to skip discovery:
 
@@ -102,11 +104,11 @@ Time-optimized workflow for the CPTS practical exam.
 
 ```bash
 # Phase 1: Fast recon (5 min)
-ade -r <dc-ip> --modules discovery,ldap,smb,signing,maq
+ade -r <dc-ip> --modules discovery,ldap,smb,smb-signing,gpp
 
 # Phase 2: Add creds + attacks (10 min)
 ade -r <dc-ip> -u <user> -p <pass> -d <domain> -f <fqdn> \
-  --modules asrep,kerberoast,bloodyad,adcs,summary
+  --modules asrep,kerberoast,bloodyad,adcs,maq,laps,summary
 
 # Phase 3: Crack + exploit (ongoing)
 hashcat -m 13100 loot/kerberoast_hashes.txt /usr/share/wordlists/rockyou.txt

@@ -4,7 +4,7 @@ tags: [ade, module, maq, rbcd, machine-account]
 
 # maq
 
-> **Order:** 11 of 12  
+> **Order:** 12 of 14  
 > **Auth:** authenticated  
 > **Prerequisites:** domain, credentials  
 > **Tools:** nxc
@@ -50,8 +50,8 @@ If `MachineAccountQuota > 0`, **any authenticated user** can create a machine ac
 
 ## Related
 
-- [[smb-signing]] — previous module
-- [[summary]] — next module
+- [[gpp]] — previous module
+- [[laps]] — next module
 - [[bloodyad]] — writable computer objects (alternative)
 - [[Attack Paths#RBCD|RBCD Attack Path]]
 - [[Modules]] — full module list

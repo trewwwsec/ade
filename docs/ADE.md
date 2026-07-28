@@ -44,7 +44,9 @@ See [[Installation]] for setup, [[CLI Reference]] for all flags.
 - [[bloodyad]] — writable object permission checks
 - [[adcs]] — ADCS enumeration via Certipy
 - [[smb-signing]] — SMB signing requirement check
+- [[gpp]] — GPP/cpassword credential recovery
 - [[maq]] — MachineAccountQuota check for RBCD viability
+- [[laps]] — LAPS password readability check
 - [[summary]] — findings summary and exam report generator
 
 ### Workflows
@@ -77,8 +79,10 @@ graph TD
     G --> H[bloodyad]
     H --> I[adcs]
     I --> J[smb-signing]
-    J --> K[maq]
-    K --> L[summary]
+    J --> K[gpp]
+    K --> L[maq]
+    L --> M[laps]
+    M --> N[summary]
 ```
 
 ## All Modules
@@ -95,8 +99,10 @@ graph TD
 | 8 | [[bloodyad]] | ✅ | domain, fqdn, credentials |
 | 9 | [[adcs]] | ✅ | domain, fqdn, credentials |
 | 10 | [[smb-signing]] | ❌ | none |
-| 11 | [[maq]] | ✅ | domain, credentials |
-| 12 | [[summary]] | ❌ | none (runs last) |
+| 11 | [[gpp]] | ❌ | none |
+| 12 | [[maq]] | ✅ | domain, credentials |
+| 13 | [[laps]] | ✅ | domain, credentials |
+| 14 | [[summary]] | ❌ | none (runs last) |
 
 ---
 

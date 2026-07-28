@@ -4,7 +4,7 @@ tags: [ade, module, bloodyad, permissions, acl]
 
 # bloodyad
 
-> **Order:** 8 of 12  
+> **Order:** 8 of 14  
 > **Auth:** authenticated  
 > **Prerequisites:** domain, fqdn, credentials  
 > **Tools:** bloodyAD

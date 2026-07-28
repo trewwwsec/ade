@@ -49,7 +49,9 @@ AVAILABLE_MODULES = [
     "bloodyad",
     "adcs",
     "smb-signing",
+    "gpp",
     "maq",
+    "laps",
     "summary",
 ]
 
@@ -272,6 +274,33 @@ SECTION_ART = {
                    
   *         *   *  
         *          """,
+
+    "gpp": r"""GPP Password Recovery
+*  *   * *  **  *   *
+ *   *  *      *  *
+  *      *  *      *
+*    *        *
+    *    *       *
+ *          *     *
+       *  *        *
+  *  *      *   *
+*      *        *
+   *       *    *
+ *    *  *      *
+        *   *      *""",
+
+    "laps": r"""LAPS Password Readability
+*   *  **  *  *   * *
+  *   *      *  *
+ *  *    *       *  *
+*      *    *
+   *       *  *   *
+ *    *  *       *
+      *       *   *
+  *      *  *       *
+*   *          *
+    *      *    *
+ *      *    *     * """,
 
     "machine_account_quota": r"""MachineAccountQuota Check
 *   *   *   * *   ** * *  

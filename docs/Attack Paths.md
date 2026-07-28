@@ -72,6 +72,17 @@ Top queries:
 5. **Sessions** — where do admins have active sessions?
 6. **AdminTo** — which machines can you pivot through?
 
+## From GPP Credentials
+
+```
+[[gpp_passwords.txt]] → cleartext creds → direct access
+```
+
+1. GPP `cpassword` is AES-decrypted with Microsoft's published key — no cracking
+2. Try recovered creds directly against SMB/LDAP/WinRM
+3. If local admin elsewhere → pivot immediately
+4. Otherwise → use as an authenticated foothold for further enumeration
+
 ## From MachineAccountQuota
 
 ```
@@ -81,6 +92,17 @@ Top queries:
 1. Create computer: `impacket-addcomputer`
 2. Configure RBCD from target to your computer
 3. Impersonate high-value user to the target
+
+## From LAPS
+
+```
+[[laps_passwords.txt]] → local admin creds → direct access
+```
+
+1. Any readable LAPS password is a ready-to-use local Administrator credential
+2. Authenticate directly: `nxc smb <target> -u administrator -p '<laps-password>' -x whoami`
+3. Dump SAM/LSASS for further credentials
+4. Check BloodHound `Session`/`AdminTo` edges from that host to expand lateral movement
 
 ## From Writable Objects
 

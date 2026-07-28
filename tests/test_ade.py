@@ -49,7 +49,7 @@ def test_config_values():
     assert __version__ == "1.2.0", f"Version should be 1.2.0, got {__version__}"
     assert "discovery" in AVAILABLE_MODULES, "discovery should be in AVAILABLE_MODULES"
     assert "kerberoast" in AVAILABLE_MODULES, "kerberoast should be in AVAILABLE_MODULES"
-    assert len(AVAILABLE_MODULES) == 12, f"Should have 12 modules, got {len(AVAILABLE_MODULES)}"
+    assert len(AVAILABLE_MODULES) == 14, f"Should have 14 modules, got {len(AVAILABLE_MODULES)}"
     print("✓ Config values correct")
     print(f"✓ Version: {__version__}")
     return True
@@ -341,9 +341,11 @@ def test_module_prerequisite_detection():
 
     missing_asrep = cli._missing_module_requirements("asrep", _Args())
     missing_bloodhound = cli._missing_module_requirements("bloodhound", _Args())
+    missing_laps = cli._missing_module_requirements("laps", _Args())
 
     assert missing_asrep == ["domain"], f"Unexpected AS-REP requirements: {missing_asrep}"
     assert missing_bloodhound == ["credentials", "domain", "fqdn"], f"Unexpected bloodhound requirements: {missing_bloodhound}"
+    assert missing_laps == ["credentials", "domain"], f"Unexpected laps requirements: {missing_laps}"
 
     print("✓ Module prerequisites are reported correctly")
     return True
@@ -539,6 +541,143 @@ def test_asrep_spn_request_skips_without_fqdn():
     return True
 
 
+def test_gpp_passwords_recovers_and_saves_credentials():
+    """Test gpp_passwords() parses nxc gpp_password/gpp_autologin output and saves findings."""
+    print("Testing GPP password recovery and parsing...")
+    from ade import checks, config
+
+    old_output_dir = config.OUTPUT_DIR
+    old_run_command = checks.run_command
+    calls = []
+
+    gpp_password_output = (
+        "SMB   10.10.10.10   445   DC01   [+] Found credentials in Policies/{GUID}/Groups.xml\n"
+        "SMB   10.10.10.10   445   DC01   GPP_PASSWORD Password: SuperSecretP@ss1\n"
+        "SMB   10.10.10.10   445   DC01   GPP_PASSWORD changed: 2012-01-01 00:00:00\n"
+    )
+    gpp_autologin_output = (
+        "SMB   10.10.10.10   445   DC01   GPP_AUTOLOGIN Usernames: ['svc-auto']\n"
+        "SMB   10.10.10.10   445   DC01   GPP_AUTOLOGIN Passwords: ['AutoLoginP@ss']\n"
+    )
+
+    def fake_run_command(cmd, title, **kwargs):
+        calls.append((cmd, title, kwargs))
+        if "gpp_password" in cmd:
+            return (gpp_password_output, 0)
+        return (gpp_autologin_output, 0)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config.OUTPUT_DIR = tmpdir
+        checks.run_command = fake_run_command
+
+        try:
+            result = checks.gpp_passwords("10.10.10.10")
+        finally:
+            config.OUTPUT_DIR = old_output_dir
+            checks.run_command = old_run_command
+
+        assert result["found"] is True
+        assert result["count"] == 2, f"Expected 2 GPP credentials, got {result['count']}"
+
+        gpp_file = os.path.join(tmpdir, "gpp_passwords.txt")
+        assert os.path.exists(gpp_file), "gpp_passwords.txt should be created"
+        contents = Path(gpp_file).read_text(encoding="utf-8")
+        assert "SuperSecretP@ss1" in contents
+        assert "AutoLoginP@ss" in contents
+
+    assert len(calls) == 2, "Both gpp_password and gpp_autologin modules should run"
+    assert any("-M" in cmd and "gpp_password" in cmd for cmd, _t, _k in calls)
+    assert any("-M" in cmd and "gpp_autologin" in cmd for cmd, _t, _k in calls)
+
+    print("✓ GPP passwords are recovered, parsed, and saved")
+    return True
+
+
+def test_gpp_passwords_no_findings():
+    """Test gpp_passwords() reports no findings cleanly when nothing is recovered."""
+    print("Testing GPP password recovery with no findings...")
+    from ade import checks, config
+
+    old_run_command = checks.run_command
+    checks.run_command = lambda cmd, title, **kwargs: ("[*] Enumerated shares", 0)
+
+    try:
+        result = checks.gpp_passwords("10.10.10.10")
+    finally:
+        checks.run_command = old_run_command
+
+    assert result == {"found": False, "count": 0, "path": None}
+
+    print("✓ GPP passwords cleanly reports no findings")
+    return True
+
+
+def test_laps_readable_recovers_and_saves_passwords():
+    """Test laps_readable() parses nxc laps output and saves recovered passwords."""
+    print("Testing LAPS password recovery and parsing...")
+    from ade import checks, config
+
+    old_output_dir = config.OUTPUT_DIR
+    old_run_command = checks.run_command
+    calls = []
+
+    laps_output = (
+        "LDAP   10.10.10.10   389   DC01   [*] Getting LAPS Passwords\n"
+        "LDAP   10.10.10.10   389   DC01   LAPS Computer:DC01$          User:Administrator     Password:R4nd0mL@psPassw0rd!\n"
+    )
+
+    def fake_run_command(cmd, title, **kwargs):
+        calls.append((cmd, title, kwargs))
+        return (laps_output, 0)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config.OUTPUT_DIR = tmpdir
+        checks.run_command = fake_run_command
+
+        try:
+            result = checks.laps_readable("10.10.10.10", "jsmith", "Passw0rd!", "CORP.LOCAL")
+        finally:
+            config.OUTPUT_DIR = old_output_dir
+            checks.run_command = old_run_command
+
+        assert result["found"] is True
+        assert result["count"] == 1, f"Expected 1 LAPS password, got {result['count']}"
+
+        laps_file = os.path.join(tmpdir, "laps_passwords.txt")
+        assert os.path.exists(laps_file), "laps_passwords.txt should be created"
+        contents = Path(laps_file).read_text(encoding="utf-8")
+        assert "DC01$:R4nd0mL@psPassw0rd!" in contents
+
+    assert len(calls) == 1
+    cmd, _title, _kwargs = calls[0]
+    assert cmd[0:2] == ["nxc", "ldap"]
+    assert "-M" in cmd and "laps" in cmd
+
+    print("✓ LAPS passwords are recovered, parsed, and saved")
+    return True
+
+
+def test_laps_readable_requires_credentials():
+    """Test laps_readable() skips cleanly without credentials."""
+    print("Testing LAPS check skips without credentials...")
+    from ade import checks
+
+    old_run_command = checks.run_command
+    calls = []
+    checks.run_command = lambda *args, **kwargs: calls.append((args, kwargs))
+
+    try:
+        result = checks.laps_readable("10.10.10.10", "", "", "CORP.LOCAL")
+    finally:
+        checks.run_command = old_run_command
+
+    assert result == {"found": False, "count": 0, "path": None}
+    assert calls == [], "LAPS module should not run without credentials"
+
+    print("✓ LAPS check requires credentials")
+    return True
+
+
 def test_init_debug_log_creates_output_dir_on_first_write():
     """Test debug log creation lazily creates the configured output dir."""
     print("Testing debug log lazy output dir creation...")
@@ -620,6 +759,8 @@ def test_main_resets_runtime_state_between_runs():
     old_adcs_certipy = cli.adcs_certipy
     old_smb_signing = cli.smb_signing
     old_machine_account_quota = cli.machine_account_quota
+    old_gpp_passwords = cli.gpp_passwords
+    old_laps_readable = cli.laps_readable
     old_generate_summary = cli.generate_summary
     argv_backup = sys.argv[:]
 
@@ -636,6 +777,8 @@ def test_main_resets_runtime_state_between_runs():
     cli.adcs_certipy = lambda *_args, **_kwargs: None
     cli.smb_signing = lambda *_args, **_kwargs: None
     cli.machine_account_quota = lambda *_args, **_kwargs: None
+    cli.gpp_passwords = lambda *_args, **_kwargs: {"found": False, "count": 0, "path": None}
+    cli.laps_readable = lambda *_args, **_kwargs: {"found": False, "count": 0, "path": None}
     cli.generate_summary = lambda *_args, **_kwargs: None
 
     try:
@@ -666,6 +809,8 @@ def test_main_resets_runtime_state_between_runs():
         cli.adcs_certipy = old_adcs_certipy
         cli.smb_signing = old_smb_signing
         cli.machine_account_quota = old_machine_account_quota
+        cli.gpp_passwords = old_gpp_passwords
+        cli.laps_readable = old_laps_readable
         cli.generate_summary = old_generate_summary
         sys.argv = argv_backup
         config.reset_runtime_state()
@@ -929,6 +1074,10 @@ def run_all_tests():
         test_setup_modules_skip_selection,
         test_module_prerequisite_detection,
         test_hash_parsing,
+        test_gpp_passwords_recovers_and_saves_credentials,
+        test_gpp_passwords_no_findings,
+        test_laps_readable_recovers_and_saves_passwords,
+        test_laps_readable_requires_credentials,
         test_asrep_roastable_user_extraction,
         test_get_user_spns_no_preauth_args_with_spaced_users_file,
         test_asrep_roastable_users_request_spns_without_auth,

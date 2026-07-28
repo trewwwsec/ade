@@ -37,7 +37,7 @@ ade -r <target-ip> [options]
 ade -r 10.10.10.161
 ```
 
-Runs all modules that work without credentials: [[discovery]], [[ldap]], [[smb]] (anonymous/guest), [[asrep]], [[smb-signing]], and [[summary]].
+Runs all modules that work without credentials: [[discovery]], [[ldap]], [[smb]] (anonymous/guest), [[asrep]], [[smb-signing]], [[gpp]], and [[summary]].
 
 ### Authenticated run
 
@@ -95,7 +95,7 @@ Prints all raw tool output to terminal **and** writes `ade_debug_<timestamp>.log
 
 ```
 discovery, creds, ldap, smb, asrep, kerberoast, bloodhound, bloodyad, adcs,
-smb-signing, maq, summary
+smb-signing, gpp, maq, laps, summary
 ```
 
 Full details: [[Modules]]
