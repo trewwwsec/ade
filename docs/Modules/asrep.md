@@ -36,6 +36,9 @@ Results saved to [[kerberoast_hashes.txt]] (hashcat mode 13100).
 ### 3. Password Policy Check
 
 Retrieves domain password policy via `nxc --pass-pol` before spraying.
+[[summary]] independently re-checks this at the end of the run (regardless of
+whether spraying happened) so its lockout-threshold caution reflects the
+current policy.
 
 ### 4. User:User Spraying
 

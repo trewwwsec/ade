@@ -12,7 +12,7 @@ from .config import SECTION_ART, get_output_path, ensure_output_parent
 from .utils import print_status, print_header, run_command
 
 
-def smb_signing(r: str, u: str = "", p: str = "") -> None:
+def smb_signing(r: str, u: str = "", p: str = "") -> dict:
     """
     Check whether SMB signing is required on the target.
 
@@ -25,6 +25,9 @@ def smb_signing(r: str, u: str = "", p: str = "") -> None:
         r: Target IP address
         u: Username (empty for anonymous check)
         p: Password (empty for anonymous check)
+
+    Returns:
+        dict: {"status": "required"|"enabled_not_required"|"disabled"|"unknown"}
     """
     print_header(SECTION_ART["smb_signing"])
 
@@ -43,7 +46,7 @@ def smb_signing(r: str, u: str = "", p: str = "") -> None:
 
     if not output or not output.strip():
         print_status("[!] Could not retrieve SMB signing status.")
-        return
+        return {"status": "unknown"}
 
     output_lower = output.lower()
 
@@ -56,6 +59,7 @@ def smb_signing(r: str, u: str = "", p: str = "") -> None:
                     "red",
                 )
             )
+            return {"status": "required"}
         else:
             print_status(
                 colored(
@@ -63,6 +67,7 @@ def smb_signing(r: str, u: str = "", p: str = "") -> None:
                     "yellow",
                 )
             )
+            return {"status": "enabled_not_required"}
     elif "signing: false" in output_lower:
         print_status(
             colored(
@@ -71,12 +76,14 @@ def smb_signing(r: str, u: str = "", p: str = "") -> None:
                 "green",
             )
         )
+        return {"status": "disabled"}
     else:
         print_status("[!] Could not parse SMB signing status from output.")
         print_status(f"    Raw: {output[:300]}")
+        return {"status": "unknown"}
 
 
-def machine_account_quota(r: str, u: str, p: str, d: str, k: bool = False) -> None:
+def machine_account_quota(r: str, u: str, p: str, d: str, k: bool = False) -> dict:
     """
     Check the MachineAccountQuota (ms-DS-MachineAccountQuota) attribute.
 
@@ -90,6 +97,9 @@ def machine_account_quota(r: str, u: str, p: str, d: str, k: bool = False) -> No
         p: Password
         d: Domain name
         k: Whether Kerberos auth is in use
+
+    Returns:
+        dict: {"quota": int|None, "addcomputer_cmd": str|None}
     """
     print_header(SECTION_ART["machine_account_quota"])
 
@@ -97,7 +107,7 @@ def machine_account_quota(r: str, u: str, p: str, d: str, k: bool = False) -> No
         print_status(
             "[!] MachineAccountQuota check requires credentials — skipping."
         )
-        return
+        return {"quota": None, "addcomputer_cmd": None}
 
     kerberos_opts = ["-k"] if k else []
 
@@ -109,7 +119,7 @@ def machine_account_quota(r: str, u: str, p: str, d: str, k: bool = False) -> No
 
     if not output or not output.strip():
         print_status("[!] Could not retrieve MachineAccountQuota.")
-        return
+        return {"quota": None, "addcomputer_cmd": None}
 
     output_lower = output.lower()
 
@@ -127,7 +137,9 @@ def machine_account_quota(r: str, u: str, p: str, d: str, k: bool = False) -> No
                         "red",
                     )
                 )
+                return {"quota": quota, "addcomputer_cmd": None}
             else:
+                addcomputer_cmd = f"impacket-addcomputer -dc-ip {r} -computer-pass 'Passw0rd!' '{d}/{u}:{p}'"
                 print_status(
                     colored(
                         f"[+] MachineAccountQuota = {quota} — you CAN add machine accounts!",
@@ -140,18 +152,16 @@ def machine_account_quota(r: str, u: str, p: str, d: str, k: bool = False) -> No
                         "yellow",
                     )
                 )
-                print_status(
-                    colored(
-                        f"    → impacket-addcomputer -dc-ip {r} -computer-pass 'Passw0rd!' '{d}/{u}:{p}'",
-                        "yellow",
-                    )
-                )
+                print_status(colored(f"    → {addcomputer_cmd}", "yellow"))
+                return {"quota": quota, "addcomputer_cmd": addcomputer_cmd}
         else:
             print_status("[+] MachineAccountQuota attribute found (see output).")
             print_status(f"    {output[:300]}")
+            return {"quota": None, "addcomputer_cmd": None}
     else:
         print_status("[!] Unexpected MAQ output format.")
         print_status(f"    Raw: {output[:300]}")
+        return {"quota": None, "addcomputer_cmd": None}
 
 
 def _parse_gpp_output(output: str, module: str) -> list:

@@ -46,6 +46,11 @@ def generate_summary(
     k: bool,
     out_dir: str | None,
     cred_status: str,
+    smb_signing_result: dict | None = None,
+    maq_result: dict | None = None,
+    gpp_result: dict | None = None,
+    laps_result: dict | None = None,
+    policy: dict | None = None,
 ) -> None:
     """
     Print a structured findings summary to stdout and write a summary file.
@@ -60,6 +65,11 @@ def generate_summary(
         k: Whether Kerberos authentication was used
         out_dir: Output directory (or None for CWD)
         cred_status: Credential verification status from verify_credentials()
+        smb_signing_result: Return value of checks.smb_signing(), or None if skipped
+        maq_result: Return value of checks.machine_account_quota(), or None if skipped
+        gpp_result: Return value of checks.gpp_passwords(), or None if skipped
+        laps_result: Return value of checks.laps_readable(), or None if skipped
+        policy: Return value of policy.get_password_policy(), or None if unavailable
     """
     print_header(SECTION_ART["findings_summary"])
 
@@ -85,6 +95,21 @@ def generate_summary(
     print(colored("─" * 50, "magenta"))
 
     artifacts_found = 0
+
+    # GPP/LAPS recovered credentials get top billing — direct plaintext creds,
+    # more immediately actionable than a hash file that still needs cracking.
+    if gpp_result and gpp_result.get("found"):
+        artifacts_found += 1
+        print(colored("\n  [GPP/cpassword Credentials]", "green"))
+        print(f"    Path:   {gpp_result['path']}  ({gpp_result['count']} credential(s))")
+        print("    Use:    Try directly against SMB/LDAP/WinRM — no cracking needed")
+
+    if laps_result and laps_result.get("found"):
+        artifacts_found += 1
+        print(colored("\n  [LAPS Local Admin Passwords]", "green"))
+        print(f"    Path:   {laps_result['path']}  ({laps_result['count']} password(s))")
+        print("    Use:    Direct local Administrator access on the listed computer(s)")
+
     for filename, info in _ARTIFACT_INFO.items():
         path = get_output_path(filename)
         if os.path.exists(path):
@@ -117,6 +142,28 @@ def generate_summary(
     print(colored("─" * 50, "magenta"))
 
     suggestions: list[tuple[str, str]] = []
+
+    # SMB relay viability — driven by the actual smb-signing finding, not a guess
+    if smb_signing_result:
+        signing_status = smb_signing_result.get("status")
+        if signing_status == "disabled":
+            suggestions.append(
+                (
+                    "SMB Relay (Signing Disabled)",
+                    "SMB signing is disabled — relay attacks are viable. "
+                    "Start Responder (sudo responder -I tun0) and ntlmrelayx "
+                    "(ntlmrelayx.py -tf targets.txt -smb2support), then coerce "
+                    "authentication (PrinterBug, PetitPotam).",
+                )
+            )
+        elif signing_status == "enabled_not_required":
+            suggestions.append(
+                (
+                    "SMB Relay (Signing Not Required)",
+                    "SMB signing is enabled but not required — relay may still "
+                    "work against hosts that don't enforce it. Worth testing.",
+                )
+            )
 
     # Anonymous/guest access paths
     if not u:
@@ -161,13 +208,26 @@ def generate_summary(
                 "(ADCS web enrollment with NTLM relay).",
             )
         )
-        suggestions.append(
-            (
-                "RBCD via Machine Quota",
-                "If MachineAccountQuota > 0, create a fake computer account "
-                "and abuse RBCD to impersonate a high-value target.",
+        maq_quota = maq_result.get("quota") if maq_result else None
+        if maq_quota is not None and maq_quota > 0:
+            suggestions.append(
+                (
+                    "RBCD via Machine Quota",
+                    f"MachineAccountQuota = {maq_quota} — you can add a machine account. "
+                    f"Create one and abuse RBCD to impersonate a high-value target:\n"
+                    f"      {maq_result['addcomputer_cmd']}",
+                )
             )
-        )
+        elif maq_quota == 0:
+            pass  # Confirmed non-viable — no need to suggest it
+        else:
+            suggestions.append(
+                (
+                    "RBCD via Machine Quota",
+                    "If MachineAccountQuota > 0, create a fake computer account "
+                    "and abuse RBCD to impersonate a high-value target.",
+                )
+            )
         suggestions.append(
             (
                 "Lateral Movement",
@@ -176,6 +236,19 @@ def generate_summary(
                 f"Session and AdminTo relationships.",
             )
         )
+
+    # Password spray safety caution, driven by the actual retrieved policy
+    if policy and policy.get("lockout_threshold") is not None:
+        lockout_threshold = policy["lockout_threshold"]
+        if 0 < lockout_threshold <= 3:
+            suggestions.append(
+                (
+                    "Lockout Caution",
+                    f"Account lockout threshold is {lockout_threshold} — very low. "
+                    "Avoid further password spraying unless you're confident in the "
+                    "password; a bad guess risks locking out accounts.",
+                )
+            )
 
     if not suggestions:
         print(colored("  Run more modules to generate attack path suggestions.", "yellow"))
@@ -221,6 +294,12 @@ def generate_summary(
         full_text.append("─" * 50)
         full_text.append("  ARTIFACT INVENTORY")
         full_text.append("─" * 50)
+
+        if gpp_result and gpp_result.get("found"):
+            full_text.append(f"  [GPP/cpassword Credentials] → {gpp_result['path']} ({gpp_result['count']} credential(s))")
+
+        if laps_result and laps_result.get("found"):
+            full_text.append(f"  [LAPS Local Admin Passwords] → {laps_result['path']} ({laps_result['count']} password(s))")
 
         for filename, info in _ARTIFACT_INFO.items():
             path = get_output_path(filename)

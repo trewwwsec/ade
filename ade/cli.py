@@ -26,6 +26,7 @@ from .credentials import verify_credentials
 from .ldap import ldap_enumeration
 from .smb import smb_enum
 from .attacks import user_spraying, kerberoasting
+from .policy import get_password_policy
 from .collection import bloodhound, bloodyad, adcs_certipy
 from .checks import smb_signing, machine_account_quota, gpp_passwords, laps_readable
 from .summary import generate_summary
@@ -137,9 +138,14 @@ def main():
 
         args.kerberos = False
 
-        # Rerun Loop Setup 
+        # Rerun Loop Setup
         run_authenticated_checks = True
         cred_status = "no-creds"
+        smb_signing_result = None
+        maq_result = None
+        gpp_result = None
+        laps_result = None
+        policy = None
 
         while run_authenticated_checks:
             if not args.kerberos:
@@ -258,27 +264,28 @@ def main():
 
             # CPTS-focused checks (no credential prerequisites for smb-signing/gpp)
             if module_enabled("smb-signing"):
-                smb_signing(args.rhosts, args.username, args.password)
+                smb_signing_result = smb_signing(args.rhosts, args.username, args.password)
 
             if module_enabled("gpp"):
-                gpp_passwords(args.rhosts, args.username, args.password)
+                gpp_result = gpp_passwords(args.rhosts, args.username, args.password)
 
             if module_enabled("maq"):
                 missing = _missing_module_requirements("maq", args)
                 if missing:
                     _report_module_skip("maq", missing)
                 else:
-                    machine_account_quota(args.rhosts, args.username, args.password, args.domain, args.kerberos)
+                    maq_result = machine_account_quota(args.rhosts, args.username, args.password, args.domain, args.kerberos)
 
             if module_enabled("laps"):
                 missing = _missing_module_requirements("laps", args)
                 if missing:
                     _report_module_skip("laps", missing)
                 else:
-                    laps_readable(args.rhosts, args.username, args.password, args.domain, args.kerberos)
+                    laps_result = laps_readable(args.rhosts, args.username, args.password, args.domain, args.kerberos)
 
             # Findings summary — always runs last when enabled
             if module_enabled("summary"):
+                policy = get_password_policy(args.rhosts, args.username, args.password, args.kerberos)
                 generate_summary(
                     args.rhosts,
                     args.domain,
@@ -287,6 +294,11 @@ def main():
                     args.kerberos,
                     out_dir,
                     cred_status,
+                    smb_signing_result=smb_signing_result,
+                    maq_result=maq_result,
+                    gpp_result=gpp_result,
+                    laps_result=laps_result,
+                    policy=policy,
                 )
 
         print_header(f"\n{ASCII_ART_FINISH}\n")

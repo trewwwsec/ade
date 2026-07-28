@@ -116,3 +116,4 @@ graph TD
 - **argv-based subprocess** — shell-safe command construction
 - **Bounded subprocess timeouts** — impacket/certipy/BloodHound calls can't hang a run indefinitely
 - **Optional host wait/retry** — `--wait-host` polls a still-booting lab instead of exiting immediately
+- **Data-driven summary** — findings summary reflects actual signing/MAQ/policy/GPP/LAPS results, not generic advice

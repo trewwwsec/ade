@@ -20,8 +20,13 @@ Generates a structured findings report and writes it to disk.
 
 ## Artifact Inventory
 
+GPP and LAPS credentials get top billing — they're direct plaintext creds,
+more immediately actionable than a hash file that still needs cracking.
+
 | File | Hashcat Mode | Purpose |
 |------|:---:|---|
+| [[gpp_passwords.txt]] | — | Recovered GPP/cpassword credentials (if any) |
+| [[laps_passwords.txt]] | — | Readable LAPS local admin passwords (if any) |
 | [[users.txt]] | — | Username list |
 | [[asrep_hashes.txt]] | 18200 | AS-REP roastable hashes |
 | [[kerberoast_hashes.txt]] | 13100 | Kerberoastable TGS hashes |
@@ -29,7 +34,15 @@ Generates a structured findings report and writes it to disk.
 
 ## Attack Path Suggestions
 
-The summary adapts to what was found:
+The summary is data-driven — it reflects the actual results from earlier
+modules rather than generic advice wherever a real finding is available:
+
+- **SMB Relay** — reflects the real [[smb-signing]] verdict (disabled /
+  enabled-not-required), with concrete Responder + ntlmrelayx commands
+- **RBCD via Machine Quota** — shows the real [[maq]] quota value and the
+  exact `impacket-addcomputer` command, when quota > 0
+- **Lockout Caution** — warns when the [[asrep#Password Policy Check|password
+  policy]] lockout threshold is dangerously low (≤ 3)
 
 **Anonymous context:**
 - SMB share enumeration → sensitive files
@@ -39,7 +52,6 @@ The summary adapts to what was found:
 - BloodHound analysis (shortest path to DA)
 - Kerberoasting → crack service accounts
 - ADCS escalation (ESC1-ESC13)
-- RBCD via MachineAccountQuota
 - Lateral movement (LSASS dump, session hunting)
 
 ## Quick Reference Commands

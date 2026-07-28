@@ -678,6 +678,83 @@ def test_laps_readable_requires_credentials():
     return True
 
 
+def test_generate_summary_uses_real_findings():
+    """Test generate_summary() surfaces real check results instead of static boilerplate."""
+    print("Testing data-driven findings summary...")
+    from ade import config, summary
+
+    old_output_dir = config.OUTPUT_DIR
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config.OUTPUT_DIR = tmpdir
+
+        gpp_result = {"found": True, "count": 1, "path": os.path.join(tmpdir, "gpp_passwords.txt")}
+        laps_result = {"found": True, "count": 1, "path": os.path.join(tmpdir, "laps_passwords.txt")}
+        maq_result = {"quota": 10, "addcomputer_cmd": "impacket-addcomputer -dc-ip 10.10.10.10 -computer-pass 'Passw0rd!' 'CORP.LOCAL/user:pass'"}
+        smb_signing_result = {"status": "disabled"}
+        policy = {"lockout_threshold": 3}
+
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                summary.generate_summary(
+                    "10.10.10.10", "CORP.LOCAL", "dc01.corp.local", "jsmith", False,
+                    tmpdir, "ok",
+                    smb_signing_result=smb_signing_result,
+                    maq_result=maq_result,
+                    gpp_result=gpp_result,
+                    laps_result=laps_result,
+                    policy=policy,
+                )
+        finally:
+            config.OUTPUT_DIR = old_output_dir
+
+        printed = buf.getvalue()
+        assert "GPP/cpassword Credentials" in printed
+        assert "LAPS Local Admin Passwords" in printed
+        assert "MachineAccountQuota = 10" in printed
+        assert "impacket-addcomputer -dc-ip 10.10.10.10" in printed
+        assert "SMB Relay (Signing Disabled)" in printed
+        assert "Lockout Caution" in printed
+
+        summary_path = os.path.join(tmpdir, "ade_summary.txt")
+        assert os.path.exists(summary_path), "ade_summary.txt should be written"
+        contents = Path(summary_path).read_text(encoding="utf-8")
+        assert "GPP/cpassword Credentials" in contents
+        assert "LAPS Local Admin Passwords" in contents
+
+    print("✓ generate_summary() reflects real findings instead of static text")
+    return True
+
+
+def test_generate_summary_degrades_gracefully_without_results():
+    """Test generate_summary() still works when no result dicts are passed (skipped modules)."""
+    print("Testing findings summary with no check results available...")
+    from ade import config, summary
+
+    old_output_dir = config.OUTPUT_DIR
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config.OUTPUT_DIR = tmpdir
+
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                summary.generate_summary(
+                    "10.10.10.10", None, None, "", False, tmpdir, "no-creds"
+                )
+        finally:
+            config.OUTPUT_DIR = old_output_dir
+
+        printed = buf.getvalue()
+        assert "GPP/cpassword Credentials" not in printed
+        assert "LAPS Local Admin Passwords" not in printed
+        assert "Lockout Caution" not in printed
+
+    print("✓ generate_summary() degrades gracefully without check results")
+    return True
+
+
 def test_init_debug_log_creates_output_dir_on_first_write():
     """Test debug log creation lazily creates the configured output dir."""
     print("Testing debug log lazy output dir creation...")
@@ -761,6 +838,7 @@ def test_main_resets_runtime_state_between_runs():
     old_machine_account_quota = cli.machine_account_quota
     old_gpp_passwords = cli.gpp_passwords
     old_laps_readable = cli.laps_readable
+    old_get_password_policy = cli.get_password_policy
     old_generate_summary = cli.generate_summary
     argv_backup = sys.argv[:]
 
@@ -779,6 +857,7 @@ def test_main_resets_runtime_state_between_runs():
     cli.machine_account_quota = lambda *_args, **_kwargs: None
     cli.gpp_passwords = lambda *_args, **_kwargs: {"found": False, "count": 0, "path": None}
     cli.laps_readable = lambda *_args, **_kwargs: {"found": False, "count": 0, "path": None}
+    cli.get_password_policy = lambda *_args, **_kwargs: None
     cli.generate_summary = lambda *_args, **_kwargs: None
 
     try:
@@ -811,6 +890,7 @@ def test_main_resets_runtime_state_between_runs():
         cli.machine_account_quota = old_machine_account_quota
         cli.gpp_passwords = old_gpp_passwords
         cli.laps_readable = old_laps_readable
+        cli.get_password_policy = old_get_password_policy
         cli.generate_summary = old_generate_summary
         sys.argv = argv_backup
         config.reset_runtime_state()
@@ -1175,6 +1255,8 @@ def run_all_tests():
         test_gpp_passwords_no_findings,
         test_laps_readable_recovers_and_saves_passwords,
         test_laps_readable_requires_credentials,
+        test_generate_summary_uses_real_findings,
+        test_generate_summary_degrades_gracefully_without_results,
         test_asrep_roastable_user_extraction,
         test_get_user_spns_no_preauth_args_with_spaced_users_file,
         test_asrep_roastable_users_request_spns_without_auth,
