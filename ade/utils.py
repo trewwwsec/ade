@@ -103,11 +103,12 @@ def run_command(
     capture_output: bool = False,
     retry_on_empty: bool = False,
     retry_on_invalid: bool = False,
-    max_retries: int = 2
+    max_retries: int = 2,
+    timeout: int = None
 ):
     """
     Execute a command with optional intelligent retry logic.
-    
+
     Args:
         cmd_list_or_str: Command as list (e.g., ["nxc", "smb", ip]) or string for shell commands
         title: Description printed before command execution
@@ -117,7 +118,9 @@ def run_command(
         retry_on_invalid: Retry if output is empty, too short, or lacks success indicators (default: False)
                          This is a superset of retry_on_empty - handles all empty cases plus validation
         max_retries: Maximum number of attempts (default: 2)
-    
+        timeout: Maximum seconds to wait for the command before killing it and treating
+                 it as a failed attempt (default: None = no timeout, matches prior behavior)
+
     Returns:
         If capture_output=True: tuple of (output_string, return_code)
         If capture_output=False: tuple of (None, return_code)
@@ -186,10 +189,18 @@ def run_command(
                 shell=is_shell_command,
                 capture_output=True,
                 text=True,
-                check=False  # Prevent crash on failure
+                check=False,  # Prevent crash on failure
+                timeout=timeout,
             )
             full_output = result.stdout + result.stderr
             return_code = result.returncode
+        except subprocess.TimeoutExpired as e:
+            error_msg = f"[!] Command timed out after {timeout}s: {title}"
+            print_status(error_msg)
+            log_debug(error_msg)
+            result = None
+            full_output = (e.stdout or "") + (e.stderr or "")
+            return_code = 124
         except Exception as e:
             error_msg = f"[!] Execution failed: {e}"
             print_status(error_msg)

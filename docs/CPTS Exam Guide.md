@@ -151,7 +151,9 @@ secretsdump.py <domain>/<user>:'<pass>'@<dc-ip> -just-dc
 2. **Not cracking while enumerating** — hashcat should run in parallel
 3. **Not checking SMB signing** — don't waste time on relay if signing is required
 4. **Not reading `ade_summary.txt`** — it has the complete attack path recommendation
-5. **Waiting too long before credential spray** — labs take ~5 min to spin up fully
+5. **Waiting too long before credential spray** — labs take ~5 min to spin up fully.
+   Use `ade -r <dc-ip> --wait-host 5 -o loot` to launch immediately and let ADE
+   retry the host-up check instead of manually waiting and re-running.
 
 ## Quick Command Cheatsheet
 

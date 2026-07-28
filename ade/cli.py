@@ -20,7 +20,7 @@ from .config import (
 )
 from .utils import print_status, print_header
 from .dependencies import check_dependencies
-from .host import check_host_nmap
+from .host import check_host_nmap, wait_for_host
 from .discovery import domain_discovery
 from .credentials import verify_credentials
 from .ldap import ldap_enumeration
@@ -121,6 +121,9 @@ def main():
         parser.add_argument("-p", "--password", default=PASSWORD_DEFAULT, help="Password for authenticated scans.")
         parser.add_argument("-v", "--verbose", "--debug", dest="debug", action="store_true", help="Show raw tool output and write a verbose debug log.")
         parser.add_argument("-o", "--output-dir", default=None, help="Output directory for loot (default: ade_<IP>_<date>/).")
+        parser.add_argument("-W", "--wait-host", type=float, default=0, metavar="MINUTES",
+                             help="Keep retrying the host-up check for this many minutes instead of exiting immediately "
+                                  "(useful while a lab is still booting). Default: 0 (single check, exit if down).")
         parser.add_argument("--modules", default=None, help="Comma-separated list of modules to run.")
         parser.add_argument("--skip", default=None, help="Comma-separated list of modules to skip.")
 
@@ -157,7 +160,12 @@ def main():
 
             # Check if host is up
             if not args.kerberos:
-                if not check_host_nmap(args.rhosts):
+                if args.wait_host and args.wait_host > 0:
+                    host_up = wait_for_host(args.rhosts, max_wait_seconds=args.wait_host * 60)
+                else:
+                    host_up = check_host_nmap(args.rhosts)
+
+                if not host_up:
                     print_status(f"[!] Host Inactive")
                     print_status(f"[-] Target IP {args.rhosts} did not respond to nmap scan.")
                     print_status("[-] Please check the IP address and network connectivity.")

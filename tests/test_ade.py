@@ -950,6 +950,103 @@ def test_host_check_handles_sudo_permission_error():
     return True
 
 
+def test_wait_for_host_succeeds_after_retries():
+    """Test wait_for_host() polls check_host_nmap until it succeeds within budget."""
+    print("Testing wait_for_host() success after retries...")
+    from ade import host
+
+    old_check_host_nmap = host.check_host_nmap
+    old_sleep = host.time.sleep
+    calls = [0]
+
+    def fake_check_host_nmap(_r):
+        calls[0] += 1
+        return calls[0] >= 3
+
+    host.check_host_nmap = fake_check_host_nmap
+    host.time.sleep = lambda _seconds: None  # Don't actually sleep in tests
+
+    try:
+        result = host.wait_for_host("10.10.10.10", max_wait_seconds=300, poll_interval=15)
+        assert result is True, "wait_for_host should succeed once check_host_nmap returns True"
+        assert calls[0] == 3, f"Expected 3 polling attempts, got {calls[0]}"
+    finally:
+        host.check_host_nmap = old_check_host_nmap
+        host.time.sleep = old_sleep
+
+    print("✓ wait_for_host() succeeds after retries within budget")
+    return True
+
+
+def test_wait_for_host_times_out():
+    """Test wait_for_host() gives up once the time budget is exhausted."""
+    print("Testing wait_for_host() timeout behavior...")
+    from ade import host
+
+    old_check_host_nmap = host.check_host_nmap
+    old_time = host.time.time
+    calls = [0]
+
+    # Simulate a clock that advances by 20s every check, exceeding a 50s budget after 3 checks.
+    fake_clock = [1000.0]
+
+    def fake_time():
+        return fake_clock[0]
+
+    def fake_check_host_nmap(_r):
+        calls[0] += 1
+        fake_clock[0] += 20
+        return False
+
+    host.check_host_nmap = fake_check_host_nmap
+    host.time.time = fake_time
+    host.time.sleep = lambda _seconds: None
+
+    try:
+        result = host.wait_for_host("10.10.10.10", max_wait_seconds=50, poll_interval=15)
+        assert result is False, "wait_for_host should give up once the budget is exhausted"
+        assert calls[0] >= 2, f"Expected at least 2 polling attempts, got {calls[0]}"
+    finally:
+        host.check_host_nmap = old_check_host_nmap
+        host.time.time = old_time
+
+    print("✓ wait_for_host() stops once the time budget is exhausted")
+    return True
+
+
+def test_run_command_timeout_retries_and_reports():
+    """Test run_command() treats subprocess.TimeoutExpired as a failed, retryable attempt."""
+    print("Testing run_command() timeout handling...")
+    from ade import config, utils
+    import subprocess as subprocess_module
+
+    original_run = utils.subprocess.run
+    old_debug = config.DEBUG
+    call_count = [0]
+
+    def fake_run(cmd, shell, capture_output, text, check, timeout=None):
+        call_count[0] += 1
+        raise subprocess_module.TimeoutExpired(cmd=cmd, timeout=timeout)
+
+    utils.subprocess.run = fake_run
+    config.DEBUG = False
+
+    try:
+        output, rc = utils.run_command(
+            ["certipy", "find"], "Find vulnerable cert templates",
+            capture_output=True, max_retries=2, timeout=5
+        )
+        assert rc == 124, f"Expected return code 124 for a timeout, got {rc}"
+        assert output == "", f"Expected empty output on timeout, got {output!r}"
+        assert call_count[0] == 1, f"Timeout without retry_on_invalid should not retry, got {call_count[0]} attempts"
+    finally:
+        utils.subprocess.run = original_run
+        config.DEBUG = old_debug
+
+    print("✓ run_command() handles subprocess timeouts cleanly")
+    return True
+
+
 def test_run_command_filters_raw_output_by_default():
     """Test run_command only prints successful findings unless verbose mode is enabled."""
     print("Testing run_command() default output filtering...")
@@ -998,7 +1095,7 @@ def test_run_command_exception_clears_result_on_retry():
         stderr = ""
         returncode = 0
 
-    def fake_run(cmd, shell, capture_output, text, check):
+    def fake_run(cmd, shell, capture_output, text, check, timeout=None):
         call_count[0] += 1
         if call_count[0] == 1:
             return _Result()
@@ -1088,6 +1185,9 @@ def run_all_tests():
         test_user_spraying_uses_argv_for_output_dir_with_spaces,
         test_smb_enum_uses_ccache_found_in_cwd_and_copies_to_output_dir,
         test_host_check_handles_sudo_permission_error,
+        test_wait_for_host_succeeds_after_retries,
+        test_wait_for_host_times_out,
+        test_run_command_timeout_retries_and_reports,
         test_run_command_filters_raw_output_by_default,
         test_run_command_shows_raw_output_in_verbose_mode,
         test_run_command_exception_clears_result_on_retry,

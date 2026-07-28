@@ -73,7 +73,7 @@ def smb_enum(r: str, f: str, d: str, u: str, p: str, k: bool) -> None:
             ccache_file = os.path.abspath(get_output_path(f"{u}.ccache"))
 
             # Get Kerberos TGT FIRST (This tool requires the password, but FQDN positional argument is REMOVED)
-            run_command(["getTGT.py", f"{d}/{u}:{p}", "-k", "-dc-ip", r], "Get Kerberos TGT with getTGT.py")
+            run_command(["getTGT.py", f"{d}/{u}:{p}", "-k", "-dc-ip", r], "Get Kerberos TGT with getTGT.py", timeout=60)
 
             # Wait briefly and verify the cache file exists before proceeding
             max_wait = 5  # seconds

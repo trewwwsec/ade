@@ -49,7 +49,8 @@ def bloodhound(r: str, f: str, d: str, u: str, p: str, k: bool) -> None:
                 "--zip"
             ],
             "Run BloodHound collector",
-            capture_output=True 
+            capture_output=True,
+            timeout=180,
         )
 
         if return_code == 0:
@@ -117,9 +118,9 @@ def adcs_certipy(r: str, f: str, d: str, u: str, p: str, k: bool) -> None:
         # Kerberos Auth for Certipy
         ensure_output_parent(get_output_path("certipy"))
         certipy_cmd = ["certipy", "find", "-target", f, "-u", f"{u}@{d}", "-p", p, "-k", "-dc-ip", r, "-vulnerable", "-stdout", "-ldap-scheme", "ldap", "-output", get_output_path("certipy")]
-        run_command(certipy_cmd, "Find vulnerable cert templates (Kerberos)")
+        run_command(certipy_cmd, "Find vulnerable cert templates (Kerberos)", timeout=120)
     else:
         # NTLM Auth for Certipy (Also add -no-tls for consistency)
         ensure_output_parent(get_output_path("certipy"))
         certipy_cmd = ["certipy", "find", "-u", u, "-p", p, "-dc-ip", r, "-vulnerable", "-stdout", "-ldap-scheme", "ldap", "-output", get_output_path("certipy")]
-        run_command(certipy_cmd, "Find vulnerable cert templates (NTLM)")
+        run_command(certipy_cmd, "Find vulnerable cert templates (NTLM)", timeout=120)

@@ -73,7 +73,7 @@ The dependencies for ADE are [certipy-ad](https://github.com/ly4k/Certipy), [net
 
 ## Key Features
 ### Initial Discovery & Host Setup
-- **Target Alive Checks:** Pings the target with nmap before starting to ensure the IP is correct and the host is online.
+- **Target Alive Checks:** Pings the target with nmap before starting to ensure the IP is correct and the host is online. Use `--wait-host <minutes>` to keep retrying instead of exiting immediately while a lab is still booting.
 - **/etc/hosts Management:** Discovers the target's FQDN and domain, then maps them in /etc/hosts for name resolution.
 - **Credential Validation:** Checks if supplied credentials are valid before launching deeper scans to avoid failed authenticated runs.
 - **User & Description Enumeration:** Collects sAMAccountName and description attributes via LDAP, and uses SMB-based RID cycling as a fallback to find accounts that LDAP queries might not return

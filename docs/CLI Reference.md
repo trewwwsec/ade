@@ -26,6 +26,7 @@ ade -r <target-ip> [options]
 | `-p`, `--password` | `""` | Password for authenticated scans |
 | `-v`, `--verbose` | off | Show raw tool output + debug log |
 | `-o`, `--output-dir` | `ade_<IP>_<YYYYMMDD>/` | Loot directory |
+| `-W`, `--wait-host` | `0` (single check) | Minutes to keep retrying the host-up check instead of exiting immediately |
 | `--modules` | _all modules_ | Comma-separated list of modules to run |
 | `--skip` | _none_ | Comma-separated list of modules to skip |
 
@@ -82,6 +83,16 @@ ade -r 10.10.10.161 -u admin -p pass -v
 ```
 
 Prints all raw tool output to terminal **and** writes `ade_debug_<timestamp>.log`.
+
+### Wait for a booting lab
+
+```bash
+ade -r 10.10.10.161 --wait-host 5
+```
+
+Retries the host-up check for up to 5 minutes instead of exiting immediately.
+Launch this right after starting the lab instead of manually waiting and
+re-invoking ADE once it's up.
 
 ## `--modules` vs `--skip`
 

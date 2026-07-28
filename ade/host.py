@@ -6,6 +6,7 @@ Host checking and /etc/hosts management for ADE.
 import subprocess
 import shlex
 import re
+import time
 
 from .utils import print_status, print_header, run_command
 
@@ -56,8 +57,43 @@ def check_host_nmap(r: str, use_pn_fallback: bool = True) -> bool:
             return True
     except (FileNotFoundError, PermissionError) as e:
         print_status(f"[!] Unable to run ping fallback: {e}")
-    
+
     return False
+
+
+def wait_for_host(r: str, max_wait_seconds: int, poll_interval: int = 15) -> bool:
+    """
+    Poll check_host_nmap() until the host responds or the time budget runs out.
+
+    Labs often take several minutes to finish booting after being started —
+    this lets an operator launch ADE immediately instead of manually waiting
+    and re-invoking it once the host is reachable.
+
+    Args:
+        r: Target IP address
+        max_wait_seconds: Total time budget to keep polling, in seconds
+        poll_interval: Seconds to sleep between polling attempts (default: 15)
+
+    Returns:
+        bool: True if the host became active within the time budget, False otherwise
+    """
+    start = time.time()
+
+    while True:
+        if check_host_nmap(r):
+            return True
+
+        elapsed = time.time() - start
+        remaining = max_wait_seconds - elapsed
+        if remaining <= 0:
+            return False
+
+        sleep_for = min(poll_interval, remaining)
+        print_status(
+            f"[*] Host not up yet — retrying in {sleep_for:.0f}s "
+            f"(elapsed {elapsed:.0f}s / {max_wait_seconds}s budget)..."
+        )
+        time.sleep(sleep_for)
 
 
 def ensure_hosts_entry(ip: str, fqdn: str, domain: str) -> bool:

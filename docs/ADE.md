@@ -114,3 +114,5 @@ graph TD
 - **Exact `--modules`** — no implicit dependency injection; prerequisites checked explicitly
 - **Runtime state isolation** — repeated `main()` calls don't leak state
 - **argv-based subprocess** — shell-safe command construction
+- **Bounded subprocess timeouts** — impacket/certipy/BloodHound calls can't hang a run indefinitely
+- **Optional host wait/retry** — `--wait-host` polls a still-booting lab instead of exiting immediately
