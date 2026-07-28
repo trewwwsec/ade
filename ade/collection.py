@@ -82,14 +82,14 @@ def bloodyad(r: str, u: str, p: str, k: bool, d: str, f: str) -> None:
     """
     print_header(SECTION_ART["bloodyad"])
 
-    # Define the Kerberos flag string to be added ONLY if 'k' is True
-    kerberos_auth = "-k" if k else ""
+    # Define the Kerberos flag ONLY if 'k' is True
+    kerberos_auth = ["-k"] if k else []
 
     # Construct command, using FQDN (f) as the host for Kerberos and DC IP (r) for the DC-IP.
     # Note: bloodyAD often requires FQDN for the host argument when using Kerberos.
-    cmd = f"bloodyAD -u {u} -p {p} {kerberos_auth} -d {d} --dc-ip {r} --host {f} get writable".strip()
+    cmd = ["bloodyAD", "-u", u, "-p", p] + kerberos_auth + ["-d", d, "--dc-ip", r, "--host", f, "get", "writable"]
 
-    run_command(cmd, "Check for writable objects with bloodyAD", is_shell_command=True)
+    run_command(cmd, "Check for writable objects with bloodyAD")
 
 
 def adcs_certipy(r: str, f: str, d: str, u: str, p: str, k: bool) -> None:
